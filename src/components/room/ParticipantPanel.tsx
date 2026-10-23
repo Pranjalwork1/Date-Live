@@ -2,6 +2,8 @@
 
 import React from 'react';
 import { Mic, MicOff, Crown, ScreenShare } from 'lucide-react';
+import { ThemeType } from '@/lib/types';
+import { THEMES, normalizeTheme } from '@/lib/themes';
 
 export interface ParticipantState {
   userId: string;
@@ -18,12 +20,15 @@ export interface ParticipantState {
 interface ParticipantPanelProps {
   participants: ParticipantState[];
   currentUserId: string;
+  theme?: ThemeType;
 }
 
 export default function ParticipantPanel({
   participants,
   currentUserId,
+  theme = 'midnight',
 }: ParticipantPanelProps) {
+  const activeTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
   const activeCount = participants.filter((p) => p.status === 'live').length;
 
   return (
@@ -51,8 +56,16 @@ export default function ParticipantPanel({
                 ? 'border-white/5 bg-black/20 opacity-60 backdrop-blur-md'
                 : isReconnecting
                 ? 'border-amber-500/40 bg-amber-500/5 backdrop-blur-xl'
-                : 'border-white/10 bg-black/40 backdrop-blur-xl'
+                : 'backdrop-blur-xl shadow-lg'
             } min-w-[170px] sm:min-w-[210px]`}
+            style={
+              !isOffline && !isReconnecting && !(isLive && p.isSpeaking)
+                ? {
+                    backgroundColor: activeTheme.cardBg,
+                    borderColor: activeTheme.cardBorder,
+                  }
+                : undefined
+            }
           >
             {/* Avatar with speaking wave */}
             <div className="relative">

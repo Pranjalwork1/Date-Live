@@ -11,7 +11,7 @@ import {
   ReactionPayload,
   LiveKitTokenResponse,
 } from '@/lib/types';
-import { THEMES } from '@/lib/themes';
+import { THEMES, normalizeTheme } from '@/lib/themes';
 import { ambienceManager } from '@/lib/ambience';
 
 import Starfield from '@/components/Starfield';
@@ -32,7 +32,7 @@ interface RoomClientProps {
 
 export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [room, setThemeRoom] = useState<DateRoom>(initialRoom);
-  const [theme, setTheme] = useState<ThemeType>(initialRoom.theme || 'midnight');
+  const [theme, setTheme] = useState<ThemeType>(() => normalizeTheme(initialRoom.theme));
   const [currentUserId] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       let savedUserId = localStorage.getItem('moonlit_user_id');
@@ -238,6 +238,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             setHasTabAudio(false);
           }
         }
+      } else if (type === 'THEME_CHANGED') {
+        const incomingTheme = normalizeTheme(payload?.theme);
+        setTheme(incomingTheme);
+        setThemeRoom((prev) => ({ ...prev, theme: incomingTheme }));
+        showToast(`${THEMES[incomingTheme].name} mood activated ✨`);
       } else if (type === 'SCREEN_SHARE_STOPPED') {
         if (!isLocalSharing) {
           setScreenStream(null);
@@ -347,6 +352,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             const data = JSON.parse(decoded);
             if (data.type === 'REACTION') {
               triggerReactionAnimation(data.payload, false);
+            } else if (data.type === 'THEME_CHANGED') {
+              const incomingTheme = normalizeTheme(data.payload?.theme);
+              setTheme(incomingTheme);
+              setThemeRoom((prev) => ({ ...prev, theme: incomingTheme }));
+              showToast(`${THEMES[incomingTheme].name} mood activated ✨`);
             } else if (data.type === 'PARTICIPANT_LEFT') {
               const { userId, displayName: leftName } = data.payload || {};
               if (userId && userId !== currentUserId) {
@@ -805,10 +815,43 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }
   };
 
-  // Theme change
+  // Theme change with live synchronization and persistence
   const handleThemeChange = (newTheme: ThemeType) => {
-    setTheme(newTheme);
-    setThemeRoom((prev) => ({ ...prev, theme: newTheme }));
+    const normalized = normalizeTheme(newTheme);
+    setTheme(normalized);
+    setThemeRoom((prev) => ({ ...prev, theme: normalized }));
+
+    // 1. Broadcast over LiveKit Data Channel to remote partner
+    if (lkRoomRef.current) {
+      try {
+        const payloadBytes = new TextEncoder().encode(
+          JSON.stringify({
+            type: 'THEME_CHANGED',
+            payload: { theme: normalized, userId: currentUserId, displayName },
+          })
+        );
+        void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+      } catch (err) {
+        console.warn('Could not broadcast theme change over LiveKit:', err);
+      }
+    }
+
+    // 2. Broadcast across local browser tabs
+    broadcastChannelRef.current?.postMessage({
+      type: 'THEME_CHANGED',
+      payload: { theme: normalized, userId: currentUserId, displayName },
+    });
+
+    // 3. Persist to Supabase / server room store
+    try {
+      void fetch('/api/room/theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomId: room.id, roomCode: room.room_code, theme: normalized }),
+      });
+    } catch (err) {
+      console.warn('Failed to persist theme:', err);
+    }
   };
 
   // Leave room cleanup
@@ -912,16 +955,41 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     };
   }, []);
 
-  const currentTheme = THEMES[theme];
+  const currentTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
   const activeParticipants = participants.filter((p) => p.status === 'live');
   const partnerNames = activeParticipants.map((p) => p.displayName).join(' & ');
   const onlineCount = activeParticipants.length;
 
   return (
     <div
-      className={`min-h-screen w-full relative flex flex-col justify-between overflow-x-hidden bg-gradient-to-b ${currentTheme.bgGradient} text-white selection:bg-rose-500 selection:text-white transition-colors duration-500`}
+      className="min-h-screen w-full relative flex flex-col justify-between overflow-x-hidden text-white selection:bg-rose-500 selection:text-white"
+      style={{
+        background: currentTheme.bgStyle,
+        transition: 'background 0.7s cubic-bezier(0.4, 0, 0.2, 1)',
+        ['--mood-glow-1' as string]: currentTheme.aura1,
+        ['--mood-glow-2' as string]: currentTheme.aura2,
+        ['--mood-glow-3' as string]: currentTheme.aura3,
+        ['--mood-card-bg' as string]: currentTheme.cardBg,
+        ['--mood-card-border' as string]: currentTheme.cardBorder,
+        ['--mood-accent' as string]: currentTheme.accentFrom,
+        ['--mood-accent-text' as string]: currentTheme.accentTextColor,
+      }}
     >
-      <Starfield density={70} />
+      {/* Ambient Mood Aura layers */}
+      <div
+        className="pointer-events-none fixed -top-40 left-1/4 h-[550px] w-[550px] rounded-full blur-[140px] opacity-70 transition-all duration-700 z-0"
+        style={{ backgroundColor: currentTheme.aura1 }}
+      />
+      <div
+        className="pointer-events-none fixed top-1/3 -right-20 h-[500px] w-[500px] rounded-full blur-[140px] opacity-60 transition-all duration-700 z-0"
+        style={{ backgroundColor: currentTheme.aura2 }}
+      />
+      <div
+        className="pointer-events-none fixed -bottom-20 left-1/3 h-[520px] w-[520px] rounded-full blur-[150px] opacity-65 transition-all duration-700 z-0"
+        style={{ backgroundColor: currentTheme.aura3 }}
+      />
+
+      <Starfield density={70} particleColor={currentTheme.particleColor} />
 
       {/* Floating Animated Reactions Canvas */}
       <FloatingReactionsOverlay
@@ -979,6 +1047,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               <ParticipantPanel
                 participants={participants}
                 currentUserId={currentUserId}
+                theme={theme}
               />
             </div>
           )}
@@ -991,6 +1060,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           messages={messages}
           onSendMessage={handleSendMessage}
           currentUserId={currentUserId}
+          theme={theme}
         />
       </main>
 
@@ -1012,6 +1082,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         isTheaterMode={isTheaterMode}
         onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
         onLeaveRoom={handleConfirmLeave}
+        theme={theme}
       />
 
       {/* Modal: Guest Display Name Prompt on direct link entry */}

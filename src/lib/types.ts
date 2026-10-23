@@ -1,16 +1,26 @@
-export type ThemeType = 'midnight' | 'candlelight' | 'lavender' | 'cinema';
+export type ThemeType = 'midnight' | 'candlelight' | 'lavender' | 'cinema' | 'dreamy' | 'cozy';
 
 export interface ThemeConfig {
   id: ThemeType;
   name: string;
   tagline: string;
+  bgStyle: string;
   bgGradient: string;
+  aura1: string;
+  aura2: string;
+  aura3: string;
   cardBg: string;
+  cardBorder: string;
+  accentFrom: string;
+  accentTo: string;
   accent: string;
   accentText: string;
+  accentTextColor: string;
   border: string;
   glow: string;
+  glowColor: string;
   dotColor: string;
+  particleColor: string;
 }
 
 export interface DateRoom {

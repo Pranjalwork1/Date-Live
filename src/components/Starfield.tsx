@@ -4,9 +4,10 @@ import React, { useMemo } from 'react';
 
 interface StarfieldProps {
   density?: number;
+  particleColor?: string;
 }
 
-export default function Starfield({ density = 60 }: StarfieldProps) {
+export default function Starfield({ density = 60, particleColor }: StarfieldProps) {
   const stars = useMemo(() => {
     // Pure deterministic star generator based on index
     return Array.from({ length: density }, (_, i) => {
@@ -31,24 +32,34 @@ export default function Starfield({ density = 60 }: StarfieldProps) {
 
   return (
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden="true">
-      {/* Soft atmospheric radial glows */}
-      <div className="absolute -top-[20%] left-1/4 w-[600px] h-[600px] rounded-full bg-rose-500/10 blur-[130px]" />
-      <div className="absolute top-1/2 -right-[15%] w-[550px] h-[550px] rounded-full bg-purple-600/10 blur-[140px]" />
-      <div className="absolute -bottom-[20%] left-1/3 w-[650px] h-[650px] rounded-full bg-indigo-500/10 blur-[150px]" />
+      {/* Soft atmospheric radial glows driven by active mood variables */}
+      <div
+        className="absolute -top-[20%] left-1/4 w-[650px] h-[650px] rounded-full blur-[140px] transition-all duration-700"
+        style={{ background: 'var(--mood-glow-1, rgba(244, 63, 94, 0.12))' }}
+      />
+      <div
+        className="absolute top-1/2 -right-[15%] w-[600px] h-[600px] rounded-full blur-[150px] transition-all duration-700"
+        style={{ background: 'var(--mood-glow-2, rgba(147, 51, 234, 0.12))' }}
+      />
+      <div
+        className="absolute -bottom-[20%] left-1/3 w-[700px] h-[700px] rounded-full blur-[160px] transition-all duration-700"
+        style={{ background: 'var(--mood-glow-3, rgba(99, 102, 241, 0.12))' }}
+      />
 
       {/* Twinkling romantic stars */}
       {stars.map((star) => (
         <span
           key={star.id}
-          className="absolute rounded-full bg-white transition-opacity"
+          className="absolute rounded-full transition-all duration-500"
           style={{
             left: `${star.x}%`,
             top: `${star.y}%`,
             width: `${star.size}px`,
             height: `${star.size}px`,
             opacity: star.opacity,
+            backgroundColor: particleColor || '#ffffff',
             animation: `twinkle ${star.duration}s ease-in-out ${star.delay}s infinite alternate`,
-            boxShadow: star.size > 2 ? '0 0 6px rgba(255, 255, 255, 0.8)' : undefined,
+            boxShadow: star.size > 2 ? `0 0 6px ${particleColor || 'rgba(255, 255, 255, 0.8)'}` : undefined,
           }}
         />
       ))}

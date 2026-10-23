@@ -251,10 +251,31 @@ export async function removeRoomMember(roomId: string, userId: string): Promise<
       console.warn('Supabase member remove error:', e);
     }
   }
+}
 
-  const existing = global.__MOONLIT_MEMBERS!.get(roomId) || [];
-  const filtered = existing.filter((m) => m.user_id !== userId);
-  global.__MOONLIT_MEMBERS!.set(roomId, filtered);
+export async function updateRoomTheme(roomId: string, theme: ThemeType): Promise<boolean> {
+  if (!roomId || !theme) return false;
+  const supabase = getSupabaseServer();
+  if (supabase) {
+    try {
+      const { error } = await supabase
+        .from('date_rooms')
+        .update({ theme })
+        .eq('id', roomId);
+      if (!error) return true;
+    } catch (e) {
+      console.warn('Supabase updateRoomTheme error:', e);
+    }
+  }
+
+  // Update in-memory store
+  for (const [, room] of global.__MOONLIT_ROOMS!.entries()) {
+    if (room.id === roomId) {
+      room.theme = theme;
+      return true;
+    }
+  }
+  return false;
 }
 
 

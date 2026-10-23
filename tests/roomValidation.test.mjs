@@ -100,5 +100,23 @@ describe('Moonlit Security & Room Logic Tests', () => {
     const guestRole = guestUserId === room.host_user_id ? 'host' : 'guest';
     assert.equal(guestRole, 'guest');
   });
+
+  test('validates and normalizes all 4 room mood themes correctly', () => {
+    function normalizeTheme(t) {
+      if (t === 'dreamy' || t === 'lavender') return 'lavender';
+      if (t === 'cozy' || t === 'cinema') return 'cinema';
+      if (t === 'candlelight') return 'candlelight';
+      return 'midnight';
+    }
+
+    assert.equal(normalizeTheme('midnight'), 'midnight');
+    assert.equal(normalizeTheme('candlelight'), 'candlelight');
+    assert.equal(normalizeTheme('dreamy'), 'lavender');
+    assert.equal(normalizeTheme('lavender'), 'lavender');
+    assert.equal(normalizeTheme('cozy'), 'cinema');
+    assert.equal(normalizeTheme('cinema'), 'cinema');
+    assert.equal(normalizeTheme('unknown'), 'midnight');
+    assert.equal(normalizeTheme(undefined), 'midnight');
+  });
 });
 

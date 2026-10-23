@@ -14,7 +14,7 @@ import {
   ScreenShare,
 } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
-import { THEMES } from '@/lib/themes';
+import { THEMES, normalizeTheme } from '@/lib/themes';
 
 interface ScreenStageProps {
   stream: MediaStream | null;
@@ -120,20 +120,29 @@ export default function ScreenStage({
     }
   };
 
-  const currentTheme = THEMES[theme];
+  const currentTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
 
   return (
     <div
       ref={containerRef}
-      className={`relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-3xl border ${currentTheme.border} bg-black/75 backdrop-blur-xl transition-all duration-300 w-full aspect-video min-h-[340px] sm:min-h-[480px]`}
+      className="relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-3xl backdrop-blur-xl transition-all duration-500 w-full aspect-video min-h-[340px] sm:min-h-[480px]"
       style={{
+        backgroundColor: currentTheme.cardBg,
+        borderColor: currentTheme.cardBorder,
+        borderWidth: '1px',
+        borderStyle: 'solid',
         boxShadow: isSharing
-          ? '0 30px 80px -15px rgba(0, 0, 0, 0.95), 0 0 45px -5px rgba(244, 63, 94, 0.25)'
-          : '0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px -8px rgba(244, 63, 94, 0.15)',
+          ? `0 30px 80px -15px rgba(0, 0, 0, 0.95), 0 0 50px -5px ${currentTheme.glowColor}`
+          : `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px -8px ${currentTheme.glowColor}`,
       }}
     >
-      {/* Soft radial aura behind video stage */}
-      <div className="absolute inset-0 bg-radial-gradient from-rose-500/10 via-purple-600/5 to-transparent pointer-events-none" />
+      {/* Soft dynamic radial aura behind video stage */}
+      <div
+        className="absolute inset-0 pointer-events-none transition-all duration-700"
+        style={{
+          background: `radial-gradient(circle at 50% 50%, ${currentTheme.aura1} 0%, ${currentTheme.aura2} 45%, transparent 75%)`,
+        }}
+      />
 
       {/* Real Screen Share Video Track */}
       {isSharing ? (
@@ -154,8 +163,16 @@ export default function ScreenStage({
           {/* Top Stage Bar: Live screen indicator, sharer info and audio indicators */}
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
             <div className="flex items-center gap-2 rounded-full bg-black/75 px-3.5 py-1.5 backdrop-blur-xl border border-white/10 text-xs text-white shadow-xl pointer-events-auto">
-              <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_#fb7185]" />
-              <span className="font-semibold text-rose-300 text-[11px] uppercase tracking-wider">Live Screen</span>
+              <span
+                className="flex h-2 w-2 rounded-full animate-pulse shadow-sm"
+                style={{ backgroundColor: currentTheme.accentFrom, boxShadow: `0 0 8px ${currentTheme.accentFrom}` }}
+              />
+              <span
+                className="font-semibold text-[11px] uppercase tracking-wider"
+                style={{ color: currentTheme.accentTextColor }}
+              >
+                Live Screen
+              </span>
               <span className="text-slate-400">·</span>
               <span className="font-medium text-slate-200">
                 {isLocalSharing ? 'You are sharing' : `${sharerName} is sharing`}
@@ -216,17 +233,40 @@ export default function ScreenStage({
         <div className="relative flex flex-col items-center justify-center p-8 text-center max-w-lg z-10 select-none">
           {/* Cinema Screen Illustration */}
           <div className="relative mb-5">
-            <div className="w-40 h-28 sm:w-52 sm:h-36 rounded-3xl border-2 border-dashed border-rose-500/35 bg-gradient-to-b from-rose-500/10 via-purple-500/5 to-transparent flex flex-col items-center justify-center shadow-2xl shadow-rose-500/10 backdrop-blur-md group transition-transform">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-500/20 to-purple-500/20 border border-rose-500/30 text-rose-400 mb-2">
+            <div
+              className="w-40 h-28 sm:w-52 sm:h-36 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center shadow-2xl backdrop-blur-md group transition-all duration-500"
+              style={{
+                borderColor: currentTheme.cardBorder,
+                background: `radial-gradient(circle at 50% 50%, ${currentTheme.aura1} 0%, transparent 80%)`,
+                boxShadow: `0 20px 40px -10px ${currentTheme.glowColor}`,
+              }}
+            >
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border mb-2 transition-all duration-500"
+                style={{
+                  borderColor: currentTheme.cardBorder,
+                  background: `linear-gradient(135deg, ${currentTheme.aura1}, ${currentTheme.aura2})`,
+                  color: currentTheme.accentTextColor,
+                }}
+              >
                 <Film className="h-6 w-6 stroke-[1.5]" />
               </div>
-              <span className="text-[11px] font-semibold tracking-wider uppercase text-rose-300">
+              <span
+                className="text-[11px] font-semibold tracking-wider uppercase"
+                style={{ color: currentTheme.accentTextColor }}
+              >
                 Moonlit Cinema
               </span>
             </div>
 
             {/* Floating Moon Badge */}
-            <div className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-purple-500 text-white shadow-lg shadow-rose-500/30 animate-pulse">
+            <div
+              className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg animate-pulse transition-all duration-500"
+              style={{
+                background: `linear-gradient(135deg, ${currentTheme.accentFrom}, ${currentTheme.accentTo})`,
+                boxShadow: `0 4px 14px ${currentTheme.glowColor}`,
+              }}
+            >
               <Moon className="h-4 w-4 fill-current" />
             </div>
 
@@ -245,7 +285,11 @@ export default function ScreenStage({
                 {onOpenInvite && (
                   <button
                     onClick={onOpenInvite}
-                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold text-white shadow-lg active:scale-95 transition-all cursor-pointer"
+                    style={{
+                      background: `linear-gradient(135deg, ${currentTheme.accentFrom}, ${currentTheme.accentTo})`,
+                      boxShadow: `0 10px 25px -5px ${currentTheme.glowColor}`,
+                    }}
                   >
                     <span>Invite ❤️</span>
                   </button>
@@ -255,7 +299,7 @@ export default function ScreenStage({
                     onClick={onStartScreenShare}
                     className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 hover:bg-white/15 px-5 py-2.5 text-xs font-semibold text-white shadow transition-all active:scale-95 cursor-pointer"
                   >
-                    <ScreenShare className="h-4 w-4 text-rose-300" />
+                    <ScreenShare className="h-4 w-4" style={{ color: currentTheme.accentTextColor }} />
                     <span>Share Screen</span>
                   </button>
                 )}

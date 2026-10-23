@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, MessageSquare, X, Heart, Loader2 } from 'lucide-react';
-import { RoomMessage } from '@/lib/types';
+import { RoomMessage, ThemeType } from '@/lib/types';
+import { THEMES, normalizeTheme } from '@/lib/themes';
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -10,6 +11,7 @@ interface ChatPanelProps {
   messages: RoomMessage[];
   onSendMessage: (content: string) => Promise<void>;
   currentUserId: string;
+  theme?: ThemeType;
 }
 
 export default function ChatPanel({
@@ -18,6 +20,7 @@ export default function ChatPanel({
   messages,
   onSendMessage,
   currentUserId,
+  theme,
 }: ChatPanelProps) {
   const [inputText, setInputText] = useState('');
   const [isSending, setIsSending] = useState(false);
@@ -65,19 +68,36 @@ export default function ChatPanel({
     }
   };
 
+  const mood = THEMES[normalizeTheme(theme)] || THEMES.midnight;
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-40 w-full sm:w-80 md:w-96 flex flex-col bg-[#0a0c18]/95 border-l border-white/10 shadow-2xl backdrop-blur-2xl transition-all">
+    <div
+      className="fixed inset-y-0 right-0 z-40 w-full sm:w-80 md:w-96 flex flex-col shadow-2xl backdrop-blur-2xl transition-all duration-500 border-l"
+      style={{
+        backgroundColor: mood.cardBg,
+        borderColor: mood.cardBorder,
+      }}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3.5 border-b border-white/10 bg-white/5">
+      <div
+        className="flex items-center justify-between px-4 py-3.5 border-b bg-white/5"
+        style={{ borderColor: mood.cardBorder }}
+      >
         <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-rose-500/20 text-rose-400">
+          <div
+            className="flex h-7 w-7 items-center justify-center rounded-full"
+            style={{
+              backgroundColor: `${mood.accentFrom}25`,
+              color: mood.accentTextColor,
+            }}
+          >
             <MessageSquare className="h-4 w-4" />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-semibold text-white tracking-tight">Little messages</span>
-            <span className="text-[10px] text-slate-400">Private room chat</span>
+            <span className="text-[10px] text-slate-400">Private room chat · {mood.name} mood</span>
           </div>
         </div>
         <button
@@ -96,7 +116,13 @@ export default function ChatPanel({
       >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 select-none">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-rose-500/10 text-rose-400 mb-3 animate-pulse">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-full mb-3 animate-pulse"
+              style={{
+                backgroundColor: `${mood.accentFrom}20`,
+                color: mood.accentTextColor,
+              }}
+            >
               <Heart className="h-6 w-6 fill-current" />
             </div>
             <p className="text-xs text-white font-medium mb-1">Send the first little message ✨</p>
@@ -121,11 +147,12 @@ export default function ChatPanel({
               >
                 {/* Mini Sender Avatar */}
                 <div
-                  className={`h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm ${
-                    isSelf
-                      ? 'bg-gradient-to-tr from-rose-500 to-pink-500'
-                      : 'bg-gradient-to-tr from-purple-500 to-indigo-500'
-                  }`}
+                  className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 shadow-sm"
+                  style={{
+                    background: isSelf
+                      ? `linear-gradient(135deg, ${mood.accentFrom}, ${mood.accentTo})`
+                      : 'linear-gradient(135deg, #a855f7, #6366f1)',
+                  }}
                   title={m.sender_name}
                 >
                   {initials}
@@ -140,10 +167,16 @@ export default function ChatPanel({
                   </div>
                   <div
                     className={`rounded-2xl px-3.5 py-2 text-xs leading-relaxed break-words shadow-md ${
-                      isSelf
-                        ? 'bg-gradient-to-tr from-rose-500 via-pink-500 to-rose-600 text-white rounded-br-xs'
-                        : 'bg-white/10 text-slate-200 border border-white/10 rounded-bl-xs'
+                      isSelf ? 'text-white rounded-br-xs' : 'bg-white/10 text-slate-200 border border-white/10 rounded-bl-xs'
                     }`}
+                    style={
+                      isSelf
+                        ? {
+                            background: `linear-gradient(135deg, ${mood.accentFrom}, ${mood.accentTo})`,
+                            boxShadow: `0 4px 14px ${mood.glowColor}`,
+                          }
+                        : undefined
+                    }
                   >
                     {m.content}
                   </div>
@@ -162,12 +195,19 @@ export default function ChatPanel({
       )}
 
       {/* Input Box with Quick Love Shortcut */}
-      <div className="p-3 border-t border-white/10 bg-black/60">
+      <div
+        className="p-3 border-t bg-black/60"
+        style={{ borderColor: mood.cardBorder }}
+      >
         <div className="flex items-center gap-1.5 mb-2">
           <button
             type="button"
             onClick={() => handleSend('❤️')}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-rose-500/20 text-rose-300 text-[11px] border border-white/5 transition-all cursor-pointer active:scale-95"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 hover:bg-white/10 text-[11px] border transition-all cursor-pointer active:scale-95"
+            style={{
+              borderColor: mood.cardBorder,
+              color: mood.accentTextColor,
+            }}
           >
             <span>❤️</span>
             <span className="text-[10px]">Send Love</span>
@@ -196,12 +236,19 @@ export default function ChatPanel({
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Whisper a message... (Enter to send)"
-            className="w-full resize-none rounded-xl border border-white/15 bg-white/5 pl-3.5 pr-10 py-2.5 text-xs text-white placeholder-slate-400 focus:border-rose-500/60 focus:bg-white/10 focus:outline-none transition-all"
+            className="w-full resize-none rounded-xl border border-white/15 bg-white/5 pl-3.5 pr-10 py-2.5 text-xs text-white placeholder-slate-400 focus:outline-none transition-all"
+            style={{
+              borderColor: mood.cardBorder,
+            }}
           />
           <button
             type="submit"
             disabled={!inputText.trim() || isSending}
-            className="absolute right-2 p-1.5 rounded-lg bg-rose-500 text-white hover:bg-rose-400 disabled:opacity-40 disabled:hover:bg-rose-500 transition-all active:scale-95 cursor-pointer"
+            className="absolute right-2 p-1.5 rounded-lg text-white disabled:opacity-40 transition-all active:scale-95 cursor-pointer"
+            style={{
+              background: `linear-gradient(135deg, ${mood.accentFrom}, ${mood.accentTo})`,
+              boxShadow: `0 4px 12px ${mood.glowColor}`,
+            }}
             aria-label="Send message"
           >
             {isSending ? (

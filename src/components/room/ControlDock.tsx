@@ -11,6 +11,8 @@ import {
   PhoneOff,
   Tv,
 } from 'lucide-react';
+import { ThemeType } from '@/lib/types';
+import { THEMES, normalizeTheme } from '@/lib/themes';
 import AppleReactionPicker from './AppleReactionPicker';
 
 interface ControlDockProps {
@@ -27,6 +29,7 @@ interface ControlDockProps {
   isTheaterMode?: boolean;
   onToggleTheaterMode?: () => void;
   onLeaveRoom: () => void;
+  theme?: ThemeType;
 }
 
 export default function ControlDock({
@@ -43,10 +46,20 @@ export default function ControlDock({
   isTheaterMode = false,
   onToggleTheaterMode,
   onLeaveRoom,
+  theme = 'midnight',
 }: ControlDockProps) {
+  const activeTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
+
   return (
     <div className="fixed bottom-5 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none">
-      <div className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full border border-white/15 bg-black/85 px-4 py-2.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10">
+      <div
+        className="pointer-events-auto flex items-center gap-2 sm:gap-3 rounded-full border px-4 py-2.5 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10 transition-all duration-500"
+        style={{
+          backgroundColor: activeTheme.cardBg,
+          borderColor: activeTheme.cardBorder,
+          boxShadow: `0 20px 50px -10px rgba(0,0,0,0.85), 0 0 25px -5px ${activeTheme.glowColor}`,
+        }}
+      >
         {/* Microphone Toggle */}
         <button
           onClick={onToggleMic}

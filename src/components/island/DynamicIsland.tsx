@@ -16,7 +16,7 @@ import {
   LogIn,
 } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
-import { THEMES } from '@/lib/themes';
+import { THEMES, AVAILABLE_MOODS, normalizeTheme } from '@/lib/themes';
 
 interface DynamicIslandProps {
   mode: 'landing' | 'room';
@@ -96,17 +96,30 @@ export default function DynamicIsland({
     setTimeout(() => setCopied(false), 2500);
   };
 
+  const activeTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
+
   return (
     <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
       <motion.div
         ref={islandRef}
         layout
         transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-        className={`pointer-events-auto relative overflow-hidden border border-white/15 bg-black/80 backdrop-blur-2xl transition-all duration-300 ${
+        className={`pointer-events-auto relative overflow-hidden backdrop-blur-2xl transition-all duration-300 ${
           isExpanded
-            ? 'rounded-3xl border-rose-500/35 ring-1 ring-rose-500/20 shadow-[0_20px_50px_-10px_rgba(0,0,0,0.85),0_0_35px_-5px_rgba(244,63,94,0.3)]'
-            : 'rounded-full hover:border-rose-500/30 shadow-[0_10px_35px_-10px_rgba(0,0,0,0.7),0_0_20px_-4px_rgba(244,63,94,0.18)]'
+            ? 'rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.85)]'
+            : 'rounded-full shadow-[0_10px_35px_-10px_rgba(0,0,0,0.7)]'
         }`}
+        style={{
+          backgroundColor: mode === 'room' ? activeTheme.cardBg : 'rgba(0, 0, 0, 0.8)',
+          borderColor: mode === 'room' ? activeTheme.cardBorder : 'rgba(255, 255, 255, 0.15)',
+          borderWidth: '1px',
+          borderStyle: 'solid',
+          boxShadow: mode === 'room'
+            ? isExpanded
+              ? `0 20px 50px -10px rgba(0,0,0,0.85), 0 0 35px -5px ${activeTheme.glowColor}`
+              : `0 10px 35px -10px rgba(0,0,0,0.7), 0 0 20px -4px ${activeTheme.glowColor}`
+            : undefined,
+        }}
       >
         {/* LANDING PAGE ISLAND */}
         {mode === 'landing' ? (
@@ -341,33 +354,52 @@ export default function DynamicIsland({
 
                   {/* Theme Switcher */}
                   {onThemeChange && (
-                    <div className="flex flex-col gap-1.5">
+                    <div className="flex flex-col gap-2">
                       <div className="flex items-center justify-between text-xs text-slate-300">
-                        <span className="flex items-center gap-1.5">
-                          <Palette className="h-3.5 w-3.5 text-rose-400" /> Room Mood
+                        <span className="flex items-center gap-1.5 font-medium">
+                          <Palette className="h-3.5 w-3.5" style={{ color: activeTheme.accentTextColor }} /> Room Mood
                         </span>
-                        <span className="text-rose-300 text-[11px] font-semibold">{THEMES[theme].name}</span>
+                        <span className="text-[12px] font-semibold" style={{ color: activeTheme.accentTextColor }}>
+                          {activeTheme.name}
+                        </span>
                       </div>
                       <div className="grid grid-cols-4 gap-1.5">
-                        {(Object.keys(THEMES) as ThemeType[]).map((tKey) => {
+                        {AVAILABLE_MOODS.map((tKey) => {
                           const t = THEMES[tKey];
-                          const isActive = theme === tKey;
+                          const isActive = normalizeTheme(theme) === tKey;
                           return (
                             <button
                               key={tKey}
+                              type="button"
                               onClick={() => onThemeChange(tKey)}
-                              className={`p-1.5 rounded-xl border text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${
+                              className={`p-2 rounded-xl border text-center flex flex-col items-center gap-1.5 transition-all cursor-pointer ${
                                 isActive
-                                  ? 'border-rose-400/80 bg-rose-500/25 shadow-sm shadow-rose-500/20'
-                                  : 'border-white/5 bg-white/5 hover:bg-white/10 text-slate-400'
+                                  ? 'scale-[1.03] shadow-lg'
+                                  : 'border-white/10 bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white'
                               }`}
+                              style={
+                                isActive
+                                  ? {
+                                      borderColor: t.cardBorder,
+                                      backgroundColor: 'rgba(255, 255, 255, 0.12)',
+                                      boxShadow: `0 0 16px -2px ${t.glowColor}`,
+                                    }
+                                  : undefined
+                              }
                             >
                               <div
-                                className="w-4 h-4 rounded-full border border-white/20 shadow-sm"
-                                style={{ backgroundColor: t.dotColor }}
+                                className="w-4 h-4 rounded-full border border-white/30 shadow-sm transition-transform"
+                                style={{
+                                  backgroundColor: t.dotColor,
+                                  boxShadow: isActive ? `0 0 8px ${t.dotColor}` : undefined,
+                                }}
                               />
-                              <span className="text-[10px] text-white/90 truncate max-w-full font-medium">
-                                {t.name.split(' ')[0]}
+                              <span
+                                className={`text-[11px] truncate max-w-full font-medium ${
+                                  isActive ? 'text-white font-semibold' : 'text-white/80'
+                                }`}
+                              >
+                                {t.name}
                               </span>
                             </button>
                           );
