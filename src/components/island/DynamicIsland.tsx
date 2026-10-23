@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Moon,
   Sparkles,
   Copy,
   Check,
@@ -137,8 +136,18 @@ export default function DynamicIsland({
                 className="flex items-center gap-2 text-left focus:outline-none group"
                 aria-label="Toggle navigation menu"
               >
-                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600 text-white shadow-md shadow-rose-500/30 group-hover:scale-105 transition-transform">
-                  <Moon className="h-3.5 w-3.5 fill-current" />
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600 text-white shadow-md shadow-rose-500/30 group-hover:scale-105 transition-transform overflow-hidden p-0.5">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/favicon.ico"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/favicon.png';
+                    }}
+                    alt="Moonlit Logo"
+                    width={24}
+                    height={24}
+                    className="h-full w-full rounded-full object-contain"
+                  />
                 </div>
                 <div className="flex flex-col">
                   <span className="font-semibold tracking-tight text-white text-xs sm:text-sm">
