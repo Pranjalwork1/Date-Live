@@ -13,6 +13,7 @@ import {
 } from '@/lib/types';
 import { THEMES } from '@/lib/themes';
 import { ambienceManager } from '@/lib/ambience';
+import { supabase } from '@/lib/supabase';
 
 import Starfield from '@/components/Starfield';
 import DynamicIsland from '@/components/island/DynamicIsland';
@@ -82,6 +83,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const isChatOpenRef = useRef(isChatOpen);
+  useEffect(() => {
+    isChatOpenRef.current = isChatOpen;
+  }, [isChatOpen]);
 
   // Floating Reactions
   const [reactions, setReactions] = useState<ActiveReaction[]>([]);
@@ -269,11 +274,20 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             const data = JSON.parse(decoded);
             if (data.type === 'REACTION') {
               triggerReactionAnimation(data.payload, false);
+            } else if (data.type === 'MESSAGE' && data.payload) {
+              setMessages((prev) => {
+                if (prev.some((m) => m.id === data.payload.id)) return prev;
+                return [...prev, data.payload];
+              });
+              if (!isChatOpenRef.current) {
+                setUnreadCount((c) => c + 1);
+              }
             }
           } catch (e) {
             console.error('DataReceived decode error:', e);
           }
         });
+
 
         lkRoom.on(RoomEvent.ParticipantConnected, (p) => {
           showToast(`${p.name || 'Your person'} is here ❤️`);
@@ -378,6 +392,50 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       return () => clearTimeout(timer);
     }
   }, [currentUserId, room.host_user_id, room.host_name, displayName, isJoined, handleJoinRoom]);
+
+
+  // Continuous message synchronization (Supabase Realtime + background poller)
+  useEffect(() => {
+    if (!isJoined || !room.id) return;
+
+    // Background poller every 3 seconds as a fail-safe
+    const pollInterval = setInterval(() => {
+      loadMessages();
+    }, 3000);
+
+    // Supabase Realtime subscription
+    if (supabase) {
+      const channel = supabase
+        .channel(`room_messages_${room.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'room_messages',
+            filter: `room_id=eq.${room.id}`,
+          },
+          (payload) => {
+            const newMsg = payload.new as RoomMessage;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [...prev, newMsg];
+            });
+            if (newMsg.sender_id !== currentUserId && !isChatOpenRef.current) {
+              setUnreadCount((c) => c + 1);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        clearInterval(pollInterval);
+        supabase.removeChannel(channel);
+      };
+    }
+
+    return () => clearInterval(pollInterval);
+  }, [isJoined, room.id, currentUserId, loadMessages]);
 
 
   // Screen Sharing Trigger (Browser Native Media with tab audio)
@@ -534,12 +592,28 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
     setMessages((prev) => [...prev, data.message]);
 
-    // Broadcast to partner
+    // 1. Broadcast to partner across the internet via LiveKit WebRTC Data Channel
+    if (lkRoomRef.current) {
+      try {
+        const payloadBytes = new TextEncoder().encode(
+          JSON.stringify({
+            type: 'MESSAGE',
+            payload: data.message,
+          })
+        );
+        await lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+      } catch (err) {
+        console.warn('Failed to publish message over LiveKit data channel:', err);
+      }
+    }
+
+    // 2. Broadcast to local cross-tabs
     broadcastChannelRef.current?.postMessage({
       type: 'MESSAGE',
       payload: data.message,
     });
   };
+
 
   // Ambience audio toggle
   const handleToggleAmbience = () => {
