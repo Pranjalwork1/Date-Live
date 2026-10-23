@@ -23,7 +23,11 @@ import ControlDock from '@/components/room/ControlDock';
 import FloatingReactionsOverlay from '@/components/room/FloatingReactionsOverlay';
 import AudioInfoModal from '@/components/room/AudioInfoModal';
 import LeaveSummaryModal from '@/components/room/LeaveSummaryModal';
+import LeaveConfirmModal from '@/components/room/LeaveConfirmModal';
+import DeleteConfirmModal from '@/components/room/DeleteConfirmModal';
+import RoomDeletedNoticeModal from '@/components/room/RoomDeletedNoticeModal';
 import InvitePartnerModal from '@/components/modals/InvitePartnerModal';
+import { useRouter } from 'next/navigation';
 import { Heart, Loader2, Sparkles } from 'lucide-react';
 
 interface RoomClientProps {
@@ -31,6 +35,7 @@ interface RoomClientProps {
 }
 
 export default function RoomClient({ initialRoom }: RoomClientProps) {
+  const router = useRouter();
   const [room, setThemeRoom] = useState<DateRoom>(initialRoom);
   const [theme, setTheme] = useState<ThemeType>(() => normalizeTheme(initialRoom.theme));
   const [currentUserId] = useState<string>(() => {
@@ -110,6 +115,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isAmbienceActive, setIsAmbienceActive] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isLeaveConfirmOpen, setIsLeaveConfirmOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [isDeletingRoom, setIsDeletingRoom] = useState(false);
+  const [isRoomDeletedNoticeOpen, setIsRoomDeletedNoticeOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [sessionStartTime] = useState<number>(() => Date.now());
   const [elapsedFormatted, setElapsedFormatted] = useState('00:00');
@@ -243,6 +252,31 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         setTheme(incomingTheme);
         setThemeRoom((prev) => ({ ...prev, theme: incomingTheme }));
         showToast(`${THEMES[incomingTheme].name} mood activated ✨`);
+      } else if (type === 'ROOM_DELETED') {
+        if (lkRoomRef.current) {
+          lkRoomRef.current.disconnect();
+          lkRoomRef.current = null;
+        }
+        if (localScreenTrackRef.current) {
+          localScreenTrackRef.current.stop();
+          localScreenTrackRef.current = null;
+        }
+        if (localScreenAudioTrackRef.current) {
+          localScreenAudioTrackRef.current.stop();
+          localScreenAudioTrackRef.current = null;
+        }
+        if (localMicTrackRef.current) {
+          localMicTrackRef.current.stop();
+          localMicTrackRef.current = null;
+        }
+        ambienceManager.stop();
+        try {
+          const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+          localStorage.removeItem(storageKey);
+        } catch {
+          // safe
+        }
+        setIsRoomDeletedNoticeOpen(true);
       } else if (type === 'SCREEN_SHARE_STOPPED') {
         if (!isLocalSharing) {
           setScreenStream(null);
@@ -357,6 +391,31 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               setTheme(incomingTheme);
               setThemeRoom((prev) => ({ ...prev, theme: incomingTheme }));
               showToast(`${THEMES[incomingTheme].name} mood activated ✨`);
+            } else if (data.type === 'ROOM_DELETED') {
+              if (lkRoomRef.current) {
+                lkRoomRef.current.disconnect();
+                lkRoomRef.current = null;
+              }
+              if (localScreenTrackRef.current) {
+                localScreenTrackRef.current.stop();
+                localScreenTrackRef.current = null;
+              }
+              if (localScreenAudioTrackRef.current) {
+                localScreenAudioTrackRef.current.stop();
+                localScreenAudioTrackRef.current = null;
+              }
+              if (localMicTrackRef.current) {
+                localMicTrackRef.current.stop();
+                localMicTrackRef.current = null;
+              }
+              ambienceManager.stop();
+              try {
+                const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+                localStorage.removeItem(storageKey);
+              } catch {
+                // safe
+              }
+              setIsRoomDeletedNoticeOpen(true);
             } else if (data.type === 'PARTICIPANT_LEFT') {
               const { userId, displayName: leftName } = data.payload || {};
               if (userId && userId !== currentUserId) {
@@ -854,8 +913,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }
   };
 
-  // Leave room cleanup
-  const handleConfirmLeave = useCallback(() => {
+  // Leave room execution (after confirmation dialog)
+  const handleExecuteLeave = useCallback(() => {
+    setIsLeaveConfirmOpen(false);
+
     // 1. Notify partner over LiveKit Data Channel
     if (lkRoomRef.current) {
       try {
@@ -871,7 +932,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       }
     }
 
-    // 2. Broadcast to local tabs
+    // 2. Broadcast across local browser tabs
     broadcastChannelRef.current?.postMessage({
       type: 'PARTICIPANT_LEFT',
       payload: { userId: currentUserId, displayName },
@@ -908,11 +969,103 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }
     if (lkRoomRef.current) {
       lkRoomRef.current.disconnect();
+      lkRoomRef.current = null;
     }
     ambienceManager.stop();
 
-    setIsLeaveModalOpen(true);
-  }, [currentUserId, displayName, room.room_code]);
+    // 6. Clear room-specific temporary cached data
+    try {
+      const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+      localStorage.removeItem(storageKey);
+    } catch {
+      // safe
+    }
+
+    // 7. Redirect to home page
+    router.push('/');
+  }, [currentUserId, displayName, room.room_code, router]);
+
+  // Delete room execution (Host only, after prominent destructive confirmation dialog)
+  const handleExecuteDelete = useCallback(async () => {
+    if (currentUserId !== room.host_user_id) {
+      showToast('Only the authorized room creator can delete this room');
+      return;
+    }
+
+    setIsDeletingRoom(true);
+
+    // 1. Broadcast ROOM_DELETED over LiveKit Data Channel to partner
+    if (lkRoomRef.current) {
+      try {
+        const payloadBytes = new TextEncoder().encode(
+          JSON.stringify({
+            type: 'ROOM_DELETED',
+            payload: { roomCode: room.room_code, hostUserId: currentUserId },
+          })
+        );
+        void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+      } catch (err) {
+        console.warn('Could not broadcast room delete over LiveKit:', err);
+      }
+    }
+
+    // 2. Broadcast across local browser tabs
+    broadcastChannelRef.current?.postMessage({
+      type: 'ROOM_DELETED',
+      payload: { roomCode: room.room_code, hostUserId: currentUserId },
+    });
+
+    // 3. Call server deletion API
+    try {
+      const res = await fetch('/api/room/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: room.room_code, userId: currentUserId }),
+      });
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to delete room');
+      }
+    } catch (err: unknown) {
+      console.warn('Error deleting room:', err);
+      showToast(err instanceof Error ? err.message : 'Error deleting room');
+      setIsDeletingRoom(false);
+      return;
+    }
+
+    // 4. Stop all media tracks and disconnect LiveKit
+    if (localScreenTrackRef.current) {
+      localScreenTrackRef.current.stop();
+      localScreenTrackRef.current = null;
+    }
+    if (localScreenAudioTrackRef.current) {
+      localScreenAudioTrackRef.current.stop();
+      localScreenAudioTrackRef.current = null;
+    }
+    if (localMicTrackRef.current) {
+      localMicTrackRef.current.stop();
+      localMicTrackRef.current = null;
+    }
+    if (lkRoomRef.current) {
+      lkRoomRef.current.disconnect();
+      lkRoomRef.current = null;
+    }
+    ambienceManager.stop();
+
+    // 5. Clear room-specific local data
+    try {
+      const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+      localStorage.removeItem(storageKey);
+    } catch {
+      // safe
+    }
+
+    setIsDeleteConfirmOpen(false);
+    setIsDeletingRoom(false);
+
+    // 6. Redirect to home page
+    router.push('/');
+  }, [currentUserId, room.host_user_id, room.room_code, router, showToast]);
 
   // Handle tab close / unload
   useEffect(() => {
@@ -955,6 +1108,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     };
   }, []);
 
+  const isHost = currentUserId === room.host_user_id;
   const currentTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
   const activeParticipants = participants.filter((p) => p.status === 'live');
   const partnerNames = activeParticipants.map((p) => p.displayName).join(' & ');
@@ -1008,7 +1162,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         partnerNames={partnerNames}
         isConnected={isJoined}
         onOpenInvite={() => setIsInviteModalOpen(true)}
-        onLeaveRoom={handleConfirmLeave}
+        onLeaveRoom={() => setIsLeaveConfirmOpen(true)}
+        onDeleteRoom={() => setIsDeleteConfirmOpen(true)}
+        isHost={isHost}
         onToggleAmbience={handleToggleAmbience}
         isAmbienceActive={isAmbienceActive}
       />
@@ -1081,7 +1237,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         onToggleAmbience={handleToggleAmbience}
         isTheaterMode={isTheaterMode}
         onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
-        onLeaveRoom={handleConfirmLeave}
+        onLeaveRoom={() => setIsLeaveConfirmOpen(true)}
         theme={theme}
       />
 
@@ -1164,6 +1320,28 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       <AudioInfoModal
         isOpen={isAudioHelpOpen}
         onClose={() => setIsAudioHelpOpen(false)}
+      />
+
+      {/* Leave Confirmation Dialog Modal */}
+      <LeaveConfirmModal
+        isOpen={isLeaveConfirmOpen}
+        onClose={() => setIsLeaveConfirmOpen(false)}
+        onConfirm={handleExecuteLeave}
+        roomTitle={room.title}
+      />
+
+      {/* Delete Confirmation Dialog Modal (Host Only) */}
+      <DeleteConfirmModal
+        isOpen={isDeleteConfirmOpen}
+        onClose={() => setIsDeleteConfirmOpen(false)}
+        onConfirm={handleExecuteDelete}
+        roomTitle={room.title}
+        isDeleting={isDeletingRoom}
+      />
+
+      {/* Room Deleted Notice Modal (for connected participants) */}
+      <RoomDeletedNoticeModal
+        isOpen={isRoomDeletedNoticeOpen}
       />
 
       {/* Leave Summary Modal */}

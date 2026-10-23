@@ -26,13 +26,24 @@ export function generateRoomCode(): string {
   return `moon-${part1}-${part2}`;
 }
 
+export async function generateUniqueRoomCode(): Promise<string> {
+  let attempts = 0;
+  while (attempts < 10) {
+    const code = generateRoomCode();
+    const existing = await getRoomByCode(code);
+    if (!existing) return code;
+    attempts++;
+  }
+  return `moon-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+}
+
 export async function createRoom(data: {
   title?: string;
   hostName: string;
   theme?: ThemeType;
   hostUserId?: string;
 }): Promise<DateRoom> {
-  const roomCode = generateRoomCode();
+  const roomCode = await generateUniqueRoomCode();
   const hostUserId = data.hostUserId?.trim() || `usr_${Math.random().toString(36).substring(2, 10)}`;
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const title = (data.title || '').trim() || 'Our Movie Night';
@@ -276,6 +287,65 @@ export async function updateRoomTheme(roomId: string, theme: ThemeType): Promise
     }
   }
   return false;
+}
+
+export async function deleteRoom(
+  roomCode: string,
+  requesterUserId: string
+): Promise<{ success: boolean; error?: string }> {
+  if (!roomCode || !requesterUserId) {
+    return { success: false, error: 'Missing roomCode or requesterUserId' };
+  }
+
+  const cleanCode = roomCode.trim().toLowerCase();
+  const room = await getRoomByCode(cleanCode);
+  if (!room) {
+    return { success: false, error: 'Room not found or already deleted' };
+  }
+
+  // Strictly verify host ownership on server
+  if (room.host_user_id !== requesterUserId.trim()) {
+    return {
+      success: false,
+      error: 'Unauthorized: Only the room host can delete this room',
+    };
+  }
+
+  const supabase = getSupabaseServer();
+  if (supabase) {
+    try {
+      // 1. Delete associated messages
+      await supabase
+        .from('room_messages')
+        .delete()
+        .eq('room_id', room.id);
+
+      // 2. Delete associated members
+      await supabase
+        .from('room_members')
+        .delete()
+        .eq('room_id', room.id);
+
+      // 3. Delete the date room itself
+      const { error: deleteError } = await supabase
+        .from('date_rooms')
+        .delete()
+        .eq('id', room.id);
+
+      if (deleteError) {
+        console.warn('Supabase delete error on date_rooms:', deleteError);
+      }
+    } catch (e) {
+      console.warn('Supabase deleteRoom error:', e);
+    }
+  }
+
+  // Also remove from in-memory fallback stores completely
+  global.__MOONLIT_ROOMS!.delete(cleanCode);
+  global.__MOONLIT_MEMBERS!.delete(room.id);
+  global.__MOONLIT_MESSAGES!.delete(room.id);
+
+  return { success: true };
 }
 
 

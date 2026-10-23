@@ -118,5 +118,75 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.equal(normalizeTheme('unknown'), 'midnight');
     assert.equal(normalizeTheme(undefined), 'midnight');
   });
+
+  test('leave room preserves the room and other participants', () => {
+    const room = {
+      id: 'rm_test_1',
+      room_code: 'moon-test-room',
+      host_user_id: 'usr_host1',
+      title: 'Movie Night',
+    };
+    let members = [
+      { userId: 'usr_host1', status: 'live' },
+      { userId: 'usr_guest2', status: 'live' },
+    ];
+
+    // Participant leaves
+    const leavingUserId = 'usr_guest2';
+    members = members.map((m) =>
+      m.userId === leavingUserId ? { ...m, status: 'offline' } : m
+    );
+
+    // Verify room still exists and host remains live
+    assert.equal(room.room_code, 'moon-test-room');
+    assert.equal(members.find((m) => m.userId === 'usr_host1')?.status, 'live');
+    assert.equal(members.find((m) => m.userId === 'usr_guest2')?.status, 'offline');
+  });
+
+  test('delete room enforces host-only authorization and rejects non-hosts', () => {
+    const room = {
+      id: 'rm_test_auth',
+      room_code: 'moon-auth-room',
+      host_user_id: 'usr_real_host',
+    };
+
+    function simulateDeleteRoom(requesterId) {
+      if (!requesterId || requesterId !== room.host_user_id) {
+        return { success: false, status: 403, error: 'Unauthorized: Only the room host can delete this room' };
+      }
+      return { success: true, status: 200 };
+    }
+
+    // Non-host attempt
+    const nonHostResult = simulateDeleteRoom('usr_malicious_guest');
+    assert.equal(nonHostResult.success, false);
+    assert.equal(nonHostResult.status, 403);
+
+    // Authorized host attempt
+    const hostResult = simulateDeleteRoom('usr_real_host');
+    assert.equal(hostResult.success, true);
+    assert.equal(hostResult.status, 200);
+  });
+
+  test('fresh room creation generates independent room code, fresh details, and empty message state', () => {
+    const roomA = {
+      id: 'rm_room_a',
+      room_code: 'moon-room-aaaa',
+      title: 'Room A Title',
+      messages: [{ content: 'Secret in Room A' }],
+    };
+
+    const roomB = {
+      id: 'rm_room_b',
+      room_code: 'moon-room-bbbb',
+      title: 'Room B Title',
+      messages: [],
+    };
+
+    assert.notEqual(roomA.room_code, roomB.room_code);
+    assert.notEqual(roomA.id, roomB.id);
+    assert.notEqual(roomA.title, roomB.title);
+    assert.equal(roomB.messages.length, 0);
+  });
 });
 

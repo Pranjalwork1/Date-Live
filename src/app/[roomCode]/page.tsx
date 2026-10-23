@@ -76,7 +76,7 @@ async function RoomContent({
   }
 
 
-  return <RoomClient initialRoom={room} />;
+  return <RoomClient key={room.room_code} initialRoom={room} />;
 }
 
 export default function RoomPage({

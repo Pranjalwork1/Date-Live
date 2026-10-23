@@ -14,6 +14,7 @@ import {
   Film,
   Heart,
   LogIn,
+  Trash2,
 } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
 import { THEMES, AVAILABLE_MOODS, normalizeTheme } from '@/lib/themes';
@@ -31,6 +32,8 @@ interface DynamicIslandProps {
   onOpenJoin?: () => void;
   onOpenInvite?: () => void;
   onLeaveRoom?: () => void;
+  onDeleteRoom?: () => void;
+  isHost?: boolean;
   onToggleAmbience?: () => void;
   isAmbienceActive?: boolean;
 }
@@ -48,6 +51,8 @@ export default function DynamicIsland({
   onOpenJoin,
   onOpenInvite,
   onLeaveRoom,
+  onDeleteRoom,
+  isHost = false,
   onToggleAmbience,
   isAmbienceActive = false,
 }: DynamicIslandProps) {
@@ -424,15 +429,31 @@ export default function DynamicIsland({
                       </button>
                     )}
 
-                    {onLeaveRoom && (
-                      <button
-                        onClick={onLeaveRoom}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-transparent hover:border-rose-500/20 transition-colors text-xs font-medium cursor-pointer"
-                      >
-                        <LogOut className="h-3.5 w-3.5" />
-                        <span>Leave Room</span>
-                      </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {isHost && onDeleteRoom && (
+                        <button
+                          type="button"
+                          onClick={onDeleteRoom}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 transition-all text-xs font-medium active:scale-95 cursor-pointer shadow-sm shadow-red-500/20"
+                          title="Delete this room permanently (Host Only)"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span>Delete Room</span>
+                        </button>
+                      )}
+
+                      {onLeaveRoom && (
+                        <button
+                          type="button"
+                          onClick={onLeaveRoom}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/25 transition-all text-xs font-medium active:scale-95 cursor-pointer"
+                          title="Leave this room"
+                        >
+                          <LogOut className="h-3.5 w-3.5" />
+                          <span>Leave Room</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               )}

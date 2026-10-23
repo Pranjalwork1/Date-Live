@@ -32,7 +32,7 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
     }
     return '';
   });
-  const [roomTitle, setRoomTitle] = useState('Our Movie Night');
+  const [roomTitle, setRoomTitle] = useState('');
   const [theme, setTheme] = useState<ThemeType>('midnight');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -161,11 +161,17 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
 
   const handleEnterRoom = () => {
     if (!createdRoom) return;
-    router.push(`/${createdRoom.code}`);
+    const targetCode = createdRoom.code;
+    setCreatedRoom(null);
+    setRoomTitle('');
+    setError(null);
+    onClose();
+    router.push(`/${targetCode}`);
   };
 
   const handleModalClose = () => {
     setCreatedRoom(null);
+    setRoomTitle('');
     setError(null);
     onClose();
   };
