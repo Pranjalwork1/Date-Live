@@ -404,8 +404,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }, 3000);
 
     // Supabase Realtime subscription
-    if (supabase) {
-      const channel = supabase
+    const client = supabase;
+    if (client) {
+      const channel = client
         .channel(`room_messages_${room.id}`)
         .on(
           'postgres_changes',
@@ -430,9 +431,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
       return () => {
         clearInterval(pollInterval);
-        supabase.removeChannel(channel);
+        client.removeChannel(channel);
       };
     }
+
 
     return () => clearInterval(pollInterval);
   }, [isJoined, room.id, currentUserId, loadMessages]);
