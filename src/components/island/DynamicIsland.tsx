@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
   Moon,
   Sparkles,
@@ -60,6 +60,7 @@ export default function DynamicIsland({
   const [copied, setCopied] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const islandRef = useRef<HTMLDivElement>(null);
+  const shouldReduceMotion = useReducedMotion();
 
   // Timer for active in-room session
   useEffect(() => {
@@ -105,11 +106,9 @@ export default function DynamicIsland({
 
   return (
     <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
-      <motion.div
+      <div
         ref={islandRef}
-        layout
-        transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-        className={`pointer-events-auto relative overflow-hidden backdrop-blur-2xl transition-all duration-300 ${
+        className={`pointer-events-auto relative overflow-hidden backdrop-blur-2xl transition-[border-radius,box-shadow] duration-[250ms] ease-out ${
           isExpanded
             ? 'rounded-3xl shadow-[0_20px_50px_-10px_rgba(0,0,0,0.85)]'
             : 'rounded-full shadow-[0_10px_35px_-10px_rgba(0,0,0,0.7)]'
@@ -131,12 +130,8 @@ export default function DynamicIsland({
           <div className="flex flex-col">
             {/* Main Capsule Header */}
             <div className="flex items-center gap-3 px-3.5 py-2 sm:gap-5 sm:px-5 sm:py-2.5">
-              {/* Logo & Click-to-Expand Trigger */}
-              <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="flex items-center gap-2 text-left focus:outline-none group"
-                aria-label="Toggle navigation menu"
-              >
+              {/* Logo & Brand Mark */}
+              <div className="flex items-center gap-2 text-left select-none">
                 <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600 text-white shadow-md shadow-rose-500/30 group-hover:scale-105 transition-transform">
                   <Moon className="h-3.5 w-3.5 fill-current" />
                 </div>
@@ -145,17 +140,23 @@ export default function DynamicIsland({
                     Moonlit
                   </span>
                 </div>
-              </button>
+              </div>
 
-              {/* Status Pill */}
+              {/* Status Pill / Dropdown Trigger */}
               <button
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="hidden md:flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 px-3 py-1 text-xs text-rose-200/90 font-light border border-white/5 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(!isExpanded);
+                }}
+                className="flex items-center gap-1.5 rounded-full bg-white/5 hover:bg-white/10 px-2.5 sm:px-3 py-1 text-xs text-rose-200/90 font-light border border-white/5 transition-colors cursor-pointer"
+                aria-expanded={isExpanded}
+                aria-label="Toggle movie date options"
               >
-                <Sparkles className="h-3 w-3 text-rose-400 animate-pulse" />
-                <span>Your next movie date awaits</span>
+                <Sparkles className="h-3 w-3 text-rose-400 animate-pulse shrink-0" />
+                <span className="hidden sm:inline">Your next movie date awaits</span>
+                <span className="sm:hidden text-[11px]">Movie date awaits</span>
                 <ChevronDown
-                  className={`h-3 w-3 text-slate-400 transition-transform duration-200 ${
+                  className={`h-3 w-3 text-slate-400 transition-transform duration-[250ms] ease-out shrink-0 ${
                     isExpanded ? 'rotate-180 text-rose-400' : ''
                   }`}
                 />
@@ -164,14 +165,22 @@ export default function DynamicIsland({
               {/* Quick Actions */}
               <div className="flex items-center gap-2">
                 <button
-                  onClick={onOpenJoin}
-                  className="hidden sm:inline-flex px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(false);
+                    onOpenJoin?.();
+                  }}
+                  className="hidden sm:inline-flex px-3 py-1.5 text-xs text-slate-300 hover:text-white transition-colors rounded-full hover:bg-white/10 cursor-pointer"
                 >
                   Join
                 </button>
                 <button
-                  onClick={onOpenCreate}
-                  className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 active:scale-95 transition-all"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsExpanded(false);
+                    onOpenCreate?.();
+                  }}
+                  className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-md shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 active:scale-95 transition-all cursor-pointer"
                 >
                   <Heart className="h-3 w-3 fill-current text-white" />
                   <span>Create Room</span>
@@ -180,14 +189,42 @@ export default function DynamicIsland({
             </div>
 
             {/* Expanded Landing Menu */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.22, ease: 'easeOut' }}
-                  className="px-5 pb-4 pt-2 border-t border-white/10 flex flex-col gap-3 min-w-[290px] sm:min-w-[360px]"
+                  key="landing-expanded"
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, height: 0, y: -6 }
+                  }
+                  animate={{
+                    opacity: 1,
+                    height: 'auto',
+                    y: 0,
+                    transition: shouldReduceMotion
+                      ? { duration: 0.1 }
+                      : {
+                          height: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: 0.22, ease: 'easeOut' },
+                          y: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                        },
+                  }}
+                  exit={
+                    shouldReduceMotion
+                      ? { opacity: 0 }
+                      : {
+                          opacity: 0,
+                          height: 0,
+                          y: -4,
+                          transition: {
+                            height: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+                            opacity: { duration: 0.18, ease: 'easeIn' },
+                            y: { duration: 0.2, ease: 'easeIn' },
+                          },
+                        }
+                  }
+                  className="overflow-hidden px-5 pb-4 pt-2 border-t border-white/10 flex flex-col gap-3 min-w-[290px] sm:min-w-[360px]"
                 >
                   <p className="text-[11px] text-slate-400 leading-relaxed">
                     A private romantic space for two. Watch in sync, talk naturally, and share reactions.
@@ -199,7 +236,7 @@ export default function DynamicIsland({
                         setIsExpanded(false);
                         onOpenCreate?.();
                       }}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 font-medium transition-all"
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 text-rose-200 font-medium transition-all cursor-pointer"
                     >
                       <Film className="h-4 w-4 text-rose-400" />
                       <span>Start Date Room</span>
@@ -209,7 +246,7 @@ export default function DynamicIsland({
                         setIsExpanded(false);
                         onOpenJoin?.();
                       }}
-                      className="flex items-center gap-2 p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-medium transition-all"
+                      className="flex items-center gap-2 p-2.5 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-slate-200 font-medium transition-all cursor-pointer"
                     >
                       <LogIn className="h-4 w-4 text-purple-400" />
                       <span>Join with Link</span>
@@ -290,7 +327,7 @@ export default function DynamicIsland({
 
                 {/* Expand Caret */}
                 <ChevronDown
-                  className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
+                  className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-[250ms] ease-out ${
                     isExpanded ? 'rotate-180 text-rose-400' : ''
                   }`}
                 />
@@ -310,14 +347,42 @@ export default function DynamicIsland({
             </div>
 
             {/* Expanded Session Details Drawer */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               {isExpanded && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.22 }}
-                  className="px-5 pb-4 pt-2 border-t border-white/10 flex flex-col gap-3.5 min-w-[290px] sm:min-w-[360px]"
+                  key="room-expanded"
+                  initial={
+                    shouldReduceMotion
+                      ? { opacity: 0 }
+                      : { opacity: 0, height: 0, y: -6 }
+                  }
+                  animate={{
+                    opacity: 1,
+                    height: 'auto',
+                    y: 0,
+                    transition: shouldReduceMotion
+                      ? { duration: 0.1 }
+                      : {
+                          height: { duration: 0.25, ease: [0.16, 1, 0.3, 1] },
+                          opacity: { duration: 0.22, ease: 'easeOut' },
+                          y: { duration: 0.24, ease: [0.16, 1, 0.3, 1] },
+                        },
+                  }}
+                  exit={
+                    shouldReduceMotion
+                      ? { opacity: 0 }
+                      : {
+                          opacity: 0,
+                          height: 0,
+                          y: -4,
+                          transition: {
+                            height: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+                            opacity: { duration: 0.18, ease: 'easeIn' },
+                            y: { duration: 0.2, ease: 'easeIn' },
+                          },
+                        }
+                  }
+                  className="overflow-hidden px-5 pb-4 pt-2 border-t border-white/10 flex flex-col gap-3.5 min-w-[290px] sm:min-w-[360px]"
                 >
                   {/* In-Drawer Quick Invite Bar */}
                   {onOpenInvite && (
@@ -460,7 +525,7 @@ export default function DynamicIsland({
             </AnimatePresence>
           </div>
         )}
-      </motion.div>
+      </div>
     </header>
   );
 }
