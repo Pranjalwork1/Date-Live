@@ -13,7 +13,6 @@ import {
 } from '@/lib/types';
 import { THEMES } from '@/lib/themes';
 import { ambienceManager } from '@/lib/ambience';
-import { supabase } from '@/lib/supabase';
 
 import Starfield from '@/components/Starfield';
 import DynamicIsland from '@/components/island/DynamicIsland';
@@ -79,14 +78,28 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   // Participants
   const [participants, setParticipants] = useState<ParticipantState[]>([]);
 
-  // Chat
-  const [messages, setMessages] = useState<RoomMessage[]>([]);
+  // Chat - Local-only, sender-only messages (isolated by roomCode and currentUserId)
+  const [messages, setMessages] = useState<RoomMessage[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const uid = localStorage.getItem('moonlit_user_id') || '';
+        const code = initialRoom.room_code;
+        if (uid && code) {
+          const storageKey = `moonlit_local_msgs_${code}_${uid}`;
+          const saved = localStorage.getItem(storageKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed)) return parsed;
+          }
+        }
+      } catch {
+        // safe fallback
+      }
+    }
+    return [];
+  });
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const isChatOpenRef = useRef(isChatOpen);
-  useEffect(() => {
-    isChatOpenRef.current = isChatOpen;
-  }, [isChatOpen]);
 
   // Floating Reactions
   const [reactions, setReactions] = useState<ActiveReaction[]>([]);
@@ -159,14 +172,6 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       const { type, payload } = event.data || {};
       if (type === 'REACTION') {
         triggerReactionAnimation(payload, false);
-      } else if (type === 'MESSAGE') {
-        setMessages((prev) => {
-          if (prev.some((m) => m.id === payload.id)) return prev;
-          return [...prev, payload];
-        });
-        if (!isChatOpen) {
-          setUnreadCount((c) => c + 1);
-        }
       } else if (type === 'PARTICIPANT_JOINED') {
         if (payload.userId !== currentUserId) {
           showToast(`${payload.displayName} is here ❤️`);
@@ -210,20 +215,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     return () => {
       bc.close();
     };
-  }, [room.room_code, currentUserId, isChatOpen, isLocalSharing, showToast, triggerReactionAnimation]);
-
-  // Chat message loading
-  const loadMessages = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/messages?roomId=${room.id}`);
-      const data = await res.json();
-      if (data.success && data.messages) {
-        setMessages(data.messages);
-      }
-    } catch (e) {
-      console.warn('Failed to load chat messages:', e);
-    }
-  }, [room.id]);
+  }, [room.room_code, currentUserId, isLocalSharing, showToast, triggerReactionAnimation]);
 
   // Connect to LiveKit Room
   const initializeLiveKit = useCallback(async (userName: string) => {
@@ -274,14 +266,6 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             const data = JSON.parse(decoded);
             if (data.type === 'REACTION') {
               triggerReactionAnimation(data.payload, false);
-            } else if (data.type === 'MESSAGE' && data.payload) {
-              setMessages((prev) => {
-                if (prev.some((m) => m.id === data.payload.id)) return prev;
-                return [...prev, data.payload];
-              });
-              if (!isChatOpenRef.current) {
-                setUnreadCount((c) => c + 1);
-              }
             }
           } catch (e) {
             console.error('DataReceived decode error:', e);
@@ -366,15 +350,12 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
       // Connect to LiveKit
       await initializeLiveKit(name.trim());
-
-      // Fetch existing room messages
-      loadMessages();
     } catch (err: unknown) {
       setErrorMessage(err instanceof Error ? err.message : 'Join error');
     } finally {
       setIsJoining(false);
     }
-  }, [room.room_code, room.host_user_id, currentUserId, initializeLiveKit, loadMessages]);
+  }, [room.room_code, room.host_user_id, currentUserId, initializeLiveKit]);
 
   // Auto-join for the host who created the room
   useEffect(() => {
@@ -392,52 +373,6 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       return () => clearTimeout(timer);
     }
   }, [currentUserId, room.host_user_id, room.host_name, displayName, isJoined, handleJoinRoom]);
-
-
-  // Continuous message synchronization (Supabase Realtime + background poller)
-  useEffect(() => {
-    if (!isJoined || !room.id) return;
-
-    // Background poller every 3 seconds as a fail-safe
-    const pollInterval = setInterval(() => {
-      loadMessages();
-    }, 3000);
-
-    // Supabase Realtime subscription
-    const client = supabase;
-    if (client) {
-      const channel = client
-        .channel(`room_messages_${room.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'room_messages',
-            filter: `room_id=eq.${room.id}`,
-          },
-          (payload) => {
-            const newMsg = payload.new as RoomMessage;
-            setMessages((prev) => {
-              if (prev.some((m) => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
-            if (newMsg.sender_id !== currentUserId && !isChatOpenRef.current) {
-              setUnreadCount((c) => c + 1);
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        clearInterval(pollInterval);
-        client.removeChannel(channel);
-      };
-    }
-
-
-    return () => clearInterval(pollInterval);
-  }, [isJoined, room.id, currentUserId, loadMessages]);
 
 
   // Screen Sharing Trigger (Browser Native Media with tab audio)
@@ -573,46 +508,31 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Chat message sending
-
+  // Chat message sending - Local-only, Sender-only
   const handleSendMessage = async (content: string) => {
-    const res = await fetch('/api/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        roomId: room.id,
-        senderId: currentUserId,
-        senderName: displayName,
-        content,
-      }),
-    });
+    const trimmed = content.trim();
+    if (!trimmed) return;
 
-    const data = await res.json();
-    if (!res.ok || data.error) {
-      throw new Error(data.error || 'Failed to send');
-    }
+    const localMessage: RoomMessage = {
+      id: `local_msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      room_id: room.id,
+      sender_id: currentUserId,
+      sender_name: displayName || 'You',
+      content: trimmed,
+      created_at: new Date().toISOString(),
+    };
 
-    setMessages((prev) => [...prev, data.message]);
-
-    // 1. Broadcast to partner across the internet via LiveKit WebRTC Data Channel
-    if (lkRoomRef.current) {
-      try {
-        const payloadBytes = new TextEncoder().encode(
-          JSON.stringify({
-            type: 'MESSAGE',
-            payload: data.message,
-          })
-        );
-        await lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
-      } catch (err) {
-        console.warn('Failed to publish message over LiveKit data channel:', err);
+    setMessages((prev) => {
+      const updated = [...prev, localMessage];
+      if (typeof window !== 'undefined' && currentUserId && room.room_code) {
+        try {
+          const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+          localStorage.setItem(storageKey, JSON.stringify(updated));
+        } catch {
+          // safe fallback
+        }
       }
-    }
-
-    // 2. Broadcast to local cross-tabs
-    broadcastChannelRef.current?.postMessage({
-      type: 'MESSAGE',
-      payload: data.message,
+      return updated;
     });
   };
 
