@@ -202,11 +202,30 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
                 </div>
               </div>
 
+              {/* Small Room Preview Card */}
+              <div className="rounded-xl border border-white/10 bg-white/5 p-3 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className="w-3.5 h-3.5 rounded-full border border-white/30 shadow-sm"
+                    style={{ backgroundColor: THEMES[theme].dotColor }}
+                  />
+                  <div className="flex flex-col">
+                    <span className="font-semibold text-white truncate max-w-[190px]">
+                      {roomTitle || 'Our Movie Night'}
+                    </span>
+                    <span className="text-[10px] text-slate-400">{THEMES[theme].name}</span>
+                  </div>
+                </div>
+                <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-medium">
+                  Preview
+                </span>
+              </div>
+
               {/* Submit CTA */}
               <button
                 type="submit"
                 disabled={isLoading}
-                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 active:scale-[0.98] disabled:opacity-50 transition-all"
+                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 active:scale-[0.98] disabled:opacity-50 transition-all cursor-pointer"
               >
                 {isLoading ? (
                   <>
@@ -216,7 +235,7 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
                 ) : (
                   <>
                     <Sparkles className="h-4 w-4" />
-                    <span>Create Date Room</span>
+                    <span>Create My Room</span>
                   </>
                 )}
               </button>

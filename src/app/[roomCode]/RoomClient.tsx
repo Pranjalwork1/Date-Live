@@ -598,6 +598,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             isTheaterMode={isTheaterMode}
             onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
             onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
+            onStartScreenShare={handleToggleScreenShare}
           />
 
           {/* Participant avatars bar beneath screen in normal mode */}
@@ -636,6 +637,8 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         unreadCount={unreadCount}
         isAmbienceActive={isAmbienceActive}
         onToggleAmbience={handleToggleAmbience}
+        isTheaterMode={isTheaterMode}
+        onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
         onLeaveRoom={handleConfirmLeave}
       />
 

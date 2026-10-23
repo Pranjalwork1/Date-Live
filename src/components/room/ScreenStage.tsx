@@ -9,8 +9,9 @@ import {
   Volume2,
   VolumeX,
   Info,
-  Sparkles,
   Radio,
+  Moon,
+  ScreenShare,
 } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
 import { THEMES } from '@/lib/themes';
@@ -26,6 +27,7 @@ interface ScreenStageProps {
   isTheaterMode: boolean;
   onToggleTheaterMode: () => void;
   onOpenAudioHelp: () => void;
+  onStartScreenShare?: () => void;
 }
 
 export default function ScreenStage({
@@ -39,6 +41,7 @@ export default function ScreenStage({
   isTheaterMode,
   onToggleTheaterMode,
   onOpenAudioHelp,
+  onStartScreenShare,
 }: ScreenStageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -118,13 +121,16 @@ export default function ScreenStage({
   return (
     <div
       ref={containerRef}
-      className={`relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-3xl border ${currentTheme.border} bg-black/60 backdrop-blur-md transition-all duration-300 w-full min-h-[340px] sm:min-h-[460px]`}
+      className={`relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-3xl border ${currentTheme.border} bg-black/75 backdrop-blur-xl transition-all duration-300 w-full aspect-video min-h-[340px] sm:min-h-[480px]`}
       style={{
         boxShadow: isSharing
-          ? '0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 35px -5px rgba(244, 63, 94, 0.2)'
-          : '0 20px 50px -15px rgba(0, 0, 0, 0.8)',
+          ? '0 30px 80px -15px rgba(0, 0, 0, 0.95), 0 0 45px -5px rgba(244, 63, 94, 0.25)'
+          : '0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 30px -8px rgba(244, 63, 94, 0.15)',
       }}
     >
+      {/* Soft radial aura behind video stage */}
+      <div className="absolute inset-0 bg-radial-gradient from-rose-500/10 via-purple-600/5 to-transparent pointer-events-none" />
+
       {/* Real Screen Share Video Track */}
       {isSharing ? (
         <div className="relative w-full h-full flex items-center justify-center bg-black">
@@ -141,11 +147,13 @@ export default function ScreenStage({
             <audio ref={audioRef} autoPlay playsInline />
           )}
 
-          {/* Top Stage Bar: Sharer info and audio indicators */}
+          {/* Top Stage Bar: Live screen indicator, sharer info and audio indicators */}
           <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-            <div className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 backdrop-blur-md border border-white/10 text-xs text-white shadow-lg pointer-events-auto">
-              <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-              <span className="font-medium">
+            <div className="flex items-center gap-2 rounded-full bg-black/75 px-3.5 py-1.5 backdrop-blur-xl border border-white/10 text-xs text-white shadow-xl pointer-events-auto">
+              <span className="flex h-2 w-2 rounded-full bg-rose-500 animate-pulse shadow-[0_0_8px_#fb7185]" />
+              <span className="font-semibold text-rose-300 text-[11px] uppercase tracking-wider">Live Screen</span>
+              <span className="text-slate-400">·</span>
+              <span className="font-medium text-slate-200">
                 {isLocalSharing ? 'You are sharing' : `${sharerName} is sharing`}
               </span>
             </div>
@@ -154,7 +162,7 @@ export default function ScreenStage({
               {/* Tab Audio Indicator */}
               <button
                 onClick={onOpenAudioHelp}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-md border transition-all ${
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl border transition-all cursor-pointer ${
                   hasTabAudio
                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm'
                     : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
@@ -168,8 +176,8 @@ export default function ScreenStage({
 
               {/* Volume Slider if remote */}
               {!isLocalSharing && hasTabAudio && (
-                <div className="flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 backdrop-blur-md border border-white/10 text-xs text-white">
-                  <button onClick={toggleMuteAudio} className="text-slate-300 hover:text-white">
+                <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-2.5 py-1 backdrop-blur-xl border border-white/10 text-xs text-white">
+                  <button onClick={toggleMuteAudio} className="text-slate-300 hover:text-white cursor-pointer">
                     {isAudioMuted || volume === 0 ? (
                       <VolumeX className="h-3.5 w-3.5 text-rose-400" />
                     ) : (
@@ -191,7 +199,7 @@ export default function ScreenStage({
               {/* Fullscreen Button */}
               <button
                 onClick={toggleFullscreen}
-                className="p-2 rounded-full bg-black/70 hover:bg-black/90 backdrop-blur-md border border-white/10 text-slate-200 hover:text-white transition-colors"
+                className="p-2 rounded-full bg-black/75 hover:bg-black/95 backdrop-blur-xl border border-white/10 text-slate-200 hover:text-white transition-colors cursor-pointer"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
               >
                 {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -203,41 +211,59 @@ export default function ScreenStage({
         /* Cozy Waiting State (No screen shared yet) */
         <div className="relative flex flex-col items-center justify-center p-8 text-center max-w-lg z-10 select-none">
           {/* Cinema Screen Illustration */}
-          <div className="relative mb-6">
-            <div className="w-36 h-24 sm:w-48 sm:h-32 rounded-2xl border-2 border-dashed border-rose-500/30 bg-gradient-to-b from-rose-500/10 to-purple-500/5 flex flex-col items-center justify-center shadow-xl shadow-rose-500/10 backdrop-blur-sm group transition-transform">
-              <Film className="h-10 w-10 text-rose-400 mb-2 stroke-[1.5]" />
-              <span className="text-[11px] font-medium tracking-wide uppercase text-rose-300/80">
+          <div className="relative mb-5">
+            <div className="w-40 h-28 sm:w-52 sm:h-36 rounded-3xl border-2 border-dashed border-rose-500/35 bg-gradient-to-b from-rose-500/10 via-purple-500/5 to-transparent flex flex-col items-center justify-center shadow-2xl shadow-rose-500/10 backdrop-blur-md group transition-transform">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-tr from-rose-500/20 to-purple-500/20 border border-rose-500/30 text-rose-400 mb-2">
+                <Film className="h-6 w-6 stroke-[1.5]" />
+              </div>
+              <span className="text-[11px] font-semibold tracking-wider uppercase text-rose-300">
                 Moonlit Cinema
               </span>
             </div>
-            <Sparkles className="absolute -top-3 -right-3 h-5 w-5 text-amber-300 animate-bounce" />
-            <div className="absolute -bottom-2 -left-2 text-2xl animate-pulse">🍿</div>
+
+            {/* Floating Moon Badge */}
+            <div className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-purple-500 text-white shadow-lg shadow-rose-500/30 animate-pulse">
+              <Moon className="h-4 w-4 fill-current" />
+            </div>
+
+            <div className="absolute -bottom-2 -left-2 text-2xl animate-bounce">🍿</div>
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white mb-2">
-            Ready for your movie night?
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+            Your movie night starts here
           </h2>
-          <p className="text-xs sm:text-sm text-slate-300 leading-relaxed mb-5">
-            Waiting for screen share... Grab your popcorn and blanket. Either of you can click{' '}
-            <strong className="text-rose-400 font-semibold">Share Screen</strong> in the dock below to play your movie.
+
+          <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
+            Share your favorite movie or show with your person. For full sound, choose your browser tab and enable <strong className="text-rose-300 font-medium">&quot;Also share tab audio&quot;</strong>.
           </p>
 
-          {/* Quick Sound Guide Pill */}
-          <button
-            onClick={onOpenAudioHelp}
-            className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2 text-xs text-rose-200/90 transition-all hover:scale-105 active:scale-95"
-          >
-            <Radio className="h-3.5 w-3.5 text-rose-400" />
-            <span>How to share movie audio from browser tab</span>
-            <Info className="h-3 w-3 text-slate-400" />
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            {onStartScreenShare && (
+              <button
+                onClick={onStartScreenShare}
+                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
+              >
+                <ScreenShare className="h-4 w-4" />
+                <span>Share Screen Now</span>
+              </button>
+            )}
+
+            <button
+              onClick={onOpenAudioHelp}
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
+            >
+              <Radio className="h-3.5 w-3.5 text-rose-400" />
+              <span>Audio guide</span>
+              <Info className="h-3 w-3 text-slate-400" />
+            </button>
+          </div>
         </div>
       )}
 
       {/* Floating Theater Mode Toggle in Corner */}
       <button
         onClick={onToggleTheaterMode}
-        className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/80 px-3 py-1.5 text-xs text-slate-300 hover:text-white border border-white/10 backdrop-blur-md transition-all shadow-md"
+        className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-black/75 hover:bg-black/90 px-3.5 py-1.5 text-xs text-slate-300 hover:text-white border border-white/10 backdrop-blur-xl transition-all shadow-lg cursor-pointer"
         title="Toggle distraction-free theater mode"
       >
         <Tv className="h-3.5 w-3.5 text-rose-400" />

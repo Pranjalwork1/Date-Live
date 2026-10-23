@@ -14,6 +14,8 @@ import {
   Palette,
   ArrowRight,
   ShieldCheck,
+  Radio,
+  Mic,
 } from 'lucide-react';
 
 export default function LandingPage() {
@@ -64,10 +66,24 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-base sm:text-lg text-slate-300/90 max-w-2xl font-light leading-relaxed mb-10"
+          className="text-base sm:text-lg text-slate-300/90 max-w-2xl font-light leading-relaxed mb-8"
         >
-          Create a little space for the two of you. Watch together, talk, laugh, and send a little love, even when you&apos;re miles apart.
+          Movie nights feel better together. Share your screen, hear every laugh, send a little love, and make the distance feel smaller.
         </motion.p>
+
+        {/* Reassuring caption */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6, delay: 0.25 }}
+          className="text-xs text-rose-300/80 font-medium mb-8 flex items-center gap-2"
+        >
+          <span>Private rooms</span>
+          <span className="text-slate-600">·</span>
+          <span>Real-time reactions</span>
+          <span className="text-slate-600">·</span>
+          <span>Made for two</span>
+        </motion.div>
 
         {/* Hero CTAs */}
         <motion.div
@@ -78,7 +94,7 @@ export default function LandingPage() {
         >
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center justify-center gap-2.5 w-full sm:w-auto rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 px-8 py-4 text-sm sm:text-base font-semibold text-white shadow-xl shadow-rose-500/30 hover:opacity-95 hover:shadow-rose-500/40 active:scale-95 transition-all"
+            className="flex items-center justify-center gap-2.5 w-full sm:w-auto rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-purple-600 px-8 py-4 text-sm sm:text-base font-semibold text-white shadow-xl shadow-rose-500/30 hover:opacity-95 hover:shadow-rose-500/40 active:scale-95 transition-all cursor-pointer"
           >
             <Heart className="h-4 w-4 fill-current text-white animate-pulse" />
             <span>Create a Date Room</span>
@@ -87,70 +103,114 @@ export default function LandingPage() {
 
           <button
             onClick={() => setIsJoinOpen(true)}
-            className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-full border border-white/15 bg-white/5 px-7 py-4 text-sm sm:text-base font-medium text-slate-200 hover:bg-white/10 hover:text-white backdrop-blur-xl transition-all"
+            className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-full border border-white/15 bg-white/5 px-7 py-4 text-sm sm:text-base font-medium text-slate-200 hover:bg-white/10 hover:text-white backdrop-blur-xl transition-all cursor-pointer"
           >
-            <span>Join with an Invite Link</span>
+            <span>Join a Room</span>
           </button>
         </motion.div>
 
-        {/* CINEMATIC COZY ROOM CSS ARTWORK */}
+        {/* HERO VISUAL — REALISTIC CINEMATIC PRODUCT PREVIEW MOCKUP */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 25 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.4 }}
-          className="relative w-full max-w-4xl rounded-3xl border border-white/15 bg-black/60 p-3 sm:p-5 shadow-2xl backdrop-blur-2xl overflow-hidden"
+          className="relative w-full max-w-4xl rounded-3xl border border-white/15 bg-black/75 p-3 sm:p-5 shadow-2xl backdrop-blur-2xl overflow-hidden"
           style={{
             boxShadow:
-              '0 30px 80px -20px rgba(0, 0, 0, 0.9), 0 0 50px -10px rgba(244, 63, 94, 0.25)',
+              '0 35px 90px -20px rgba(0, 0, 0, 0.95), 0 0 60px -10px rgba(244, 63, 94, 0.3)',
           }}
         >
-          {/* Simulated Theater Screen Inside Artwork */}
-          <div className="relative aspect-video w-full rounded-2xl bg-gradient-to-b from-[#0f1429] via-[#090b16] to-[#04050a] border border-white/10 flex flex-col items-center justify-between p-6 sm:p-10 overflow-hidden">
-            {/* Top Bar of Simulated Screen */}
+          {/* Simulated Theater Screen Mockup */}
+          <div className="relative aspect-video w-full rounded-2xl bg-gradient-to-b from-[#0b0e24] via-[#070916] to-[#030408] border border-white/10 flex flex-col justify-between p-4 sm:p-8 overflow-hidden select-none">
+            {/* Top Bar of Preview */}
             <div className="w-full flex items-center justify-between z-10">
-              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md text-xs text-rose-300 font-medium">
-                <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-                <span>Streaming together</span>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 border border-white/10 backdrop-blur-xl text-xs text-rose-300 font-medium">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping shadow-[0_0_8px_#34d399]" />
+                <span className="text-white font-semibold">Together now ❤️</span>
+                <span className="text-slate-500">·</span>
+                <span className="text-slate-300 text-[11px]">Alex & Maya</span>
               </div>
+
               <div className="flex items-center gap-2 text-xs text-slate-300">
-                <span className="px-2.5 py-1 rounded-full bg-white/10 border border-white/10 font-mono">
+                <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 font-mono text-[11px]">
                   01:24:18
+                </span>
+                <span className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px]">
+                  <Radio className="h-3 w-3" />
+                  <span>Tab Sound Active</span>
                 </span>
               </div>
             </div>
 
-            {/* Center Romantic Scene Graphic */}
-            <div className="relative flex flex-col items-center my-auto z-10">
-              <div className="relative mb-4">
-                <div className="flex h-20 w-20 sm:h-28 sm:w-28 items-center justify-center rounded-3xl bg-gradient-to-tr from-rose-500/20 to-purple-500/20 border border-rose-500/30 shadow-2xl shadow-rose-500/30 backdrop-blur-xl">
-                  <Film className="h-10 w-10 sm:h-14 sm:w-14 text-rose-400 stroke-[1.2]" />
+            {/* Central Movie Scene Preview with Floating Reaction */}
+            <div className="relative flex flex-col items-center justify-center my-auto z-10 py-6">
+              <div className="relative mb-3">
+                <div className="flex h-20 w-20 sm:h-24 sm:w-24 items-center justify-center rounded-3xl bg-gradient-to-tr from-rose-500/20 via-pink-500/10 to-purple-500/20 border border-rose-500/35 shadow-2xl shadow-rose-500/20 backdrop-blur-xl">
+                  <Film className="h-10 w-10 sm:h-12 sm:w-12 text-rose-400 stroke-[1.2]" />
                 </div>
-                {/* Floating Love Emojis */}
-                <span className="absolute -top-3 -right-4 text-2xl animate-bounce">❤️</span>
-                <span className="absolute -bottom-2 -left-4 text-2xl">🍿</span>
-                <span className="absolute top-1/2 -left-8 text-xl">✨</span>
+                {/* Floating Heart Reactions Rising */}
+                <motion.span
+                  animate={{ y: [-10, -45], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeOut' }}
+                  className="absolute -top-3 -right-3 text-2xl"
+                >
+                  ❤️
+                </motion.span>
+                <motion.span
+                  animate={{ y: [-5, -35], opacity: [0, 1, 0] }}
+                  transition={{ duration: 2.8, repeat: Infinity, delay: 1.2, ease: 'easeOut' }}
+                  className="absolute -top-2 -left-4 text-xl"
+                >
+                  ✨
+                </motion.span>
               </div>
-              <p className="text-base sm:text-lg font-semibold text-white tracking-tight">
-                Our Little Midnight Cinema
-              </p>
-              <p className="text-xs sm:text-sm text-rose-200/80 font-light">
-                High definition screen share with crisp browser tab movie sound
-              </p>
-            </div>
 
-            {/* Simulated Floating Reaction Bar at bottom */}
-            <div className="z-10 flex items-center gap-2 px-4 py-2 rounded-full bg-black/75 border border-white/15 backdrop-blur-xl text-lg sm:text-xl shadow-lg">
-              <span>❤️</span>
-              <span>😍</span>
-              <span>🍿</span>
-              <span>✨</span>
-              <span className="text-xs text-slate-400 pl-2 hidden sm:inline">
-                Instant Apple-style reactions
+              <span className="text-base sm:text-lg font-bold text-white tracking-tight">
+                Our Movie Night — Interstellar
+              </span>
+              <span className="text-xs text-rose-200/80 font-light mt-0.5">
+                Streaming screen & crisp browser tab sound
               </span>
             </div>
 
+            {/* Bottom Preview Bar: Two Avatar Chips + Mini Reaction Pill */}
+            <div className="w-full flex items-center justify-between z-10 pt-2 border-t border-white/5">
+              {/* Avatar Chips */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 flex items-center justify-center text-[10px] font-bold text-white">
+                    A
+                  </div>
+                  <span className="text-xs text-white font-medium">You</span>
+                  <div className="flex items-center gap-0.5 text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <Mic className="h-3 w-3" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">
+                    M
+                  </div>
+                  <span className="text-xs text-white font-medium">Maya</span>
+                  <div className="flex items-center gap-0.5 text-emerald-400">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <Mic className="h-3 w-3" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Reaction Pill Preview */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/75 border border-white/15 backdrop-blur-xl text-sm">
+                <span>❤️</span>
+                <span>🍿</span>
+                <span>🥰</span>
+                <span className="text-[10px] text-slate-400 pl-1 hidden sm:inline">Apple-style reactions</span>
+              </div>
+            </div>
+
             {/* Ambient Background Glow in Screen */}
-            <div className="absolute inset-0 bg-radial-gradient from-rose-500/10 via-transparent to-transparent pointer-events-none" />
+            <div className="absolute inset-0 bg-radial-gradient from-rose-500/15 via-purple-600/5 to-transparent pointer-events-none" />
           </div>
 
           {/* Subtitle Under Artwork */}
@@ -159,7 +219,7 @@ export default function LandingPage() {
               <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
               Private room for two with end-to-end media channels
             </span>
-            <span className="hidden sm:inline text-rose-300">LiveKit Audio & Screen Transport</span>
+            <span className="hidden sm:inline text-rose-300 font-medium">LiveKit Cloud WebRTC Media Engine</span>
           </div>
         </motion.div>
       </section>
@@ -167,36 +227,36 @@ export default function LandingPage() {
       {/* 3 COMPACT FEATURE HIGHLIGHTS */}
       <section className="relative z-10 py-16 px-4 sm:px-6 max-w-6xl mx-auto w-full">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1 */}
+          {/* Card 1: Watch Together */}
           <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400 mb-1">
               <ScreenShare className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Watch together</h2>
+            <h2 className="text-lg font-bold text-white tracking-tight">Watch Together</h2>
             <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Share your browser tab, streaming video, or player window with real-time audio synchronization.
+              Share your screen and supported browser-tab audio with crystal-clear synchronization.
             </p>
           </div>
 
-          {/* Card 2 */}
+          {/* Card 2: Feel Every Moment */}
           <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-purple-500/20 text-purple-400 mb-1">
               <Heart className="h-6 w-6 fill-purple-400/30" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Feel closer</h2>
+            <h2 className="text-lg font-bold text-white tracking-tight">Feel Every Moment</h2>
             <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Talk without disturbing movie sound, send live whispers in chat, and trigger floating Apple-style reactions.
+              Talk naturally, send messages, and react with a single tap using Apple-inspired floating emojis.
             </p>
           </div>
 
-          {/* Card 3 */}
+          {/* Card 3: Make It Yours */}
           <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400 mb-1">
               <Palette className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Make it yours</h2>
+            <h2 className="text-lg font-bold text-white tracking-tight">Make It Yours</h2>
             <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Pick from four romantic moods: Midnight Romance, Candlelight, Dreamy Lavender, or Cozy Cinema.
+              Choose cozy themes and create your own private movie-date space with ambient soundscapes.
             </p>
           </div>
         </div>
@@ -218,7 +278,7 @@ export default function LandingPage() {
               1
             </div>
             <h3 className="text-sm font-semibold text-white">Create your private room</h3>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+            <p className="text-xs text-slate-400 leading-relaxed max-w-xs font-light">
               Give your movie night a title, pick a romantic mood, and get a secure unguessable room code.
             </p>
           </div>
@@ -229,7 +289,7 @@ export default function LandingPage() {
               2
             </div>
             <h3 className="text-sm font-semibold text-white">Share link with your person</h3>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+            <p className="text-xs text-slate-400 leading-relaxed max-w-xs font-light">
               Copy the private invitation link with one click and text it to your partner.
             </p>
           </div>
@@ -240,7 +300,7 @@ export default function LandingPage() {
               3
             </div>
             <h3 className="text-sm font-semibold text-white">Share screen & enjoy</h3>
-            <p className="text-xs text-slate-400 leading-relaxed max-w-xs">
+            <p className="text-xs text-slate-400 leading-relaxed max-w-xs font-light">
               Click &apos;Share Screen&apos;, select your movie tab with tab audio checked, and enjoy the night.
             </p>
           </div>
