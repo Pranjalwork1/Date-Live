@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+:root {
+  --background: #060814;
+  --foreground: #f8fafc;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+}
+
+/* Custom romantic scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 63, 94, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.6);
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(244, 63, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(244, 63, 94, 0.6);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 3s infinite;
+}
