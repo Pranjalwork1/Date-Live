@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { Room, RoomEvent, Track } from 'livekit-client';
+import { Room, RoomEvent, Track, ConnectionQuality, Participant } from 'livekit-client';
 import {
   DateRoom,
   RoomMessage,
@@ -186,7 +186,19 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             // safe
           }
           setParticipants((prev) => {
-            if (prev.some((p) => p.userId === payload.userId)) return prev;
+            const existing = prev.find((p) => p.userId === payload.userId);
+            if (existing) {
+              return prev.map((p) =>
+                p.userId === payload.userId
+                  ? {
+                      ...p,
+                      displayName: payload.displayName,
+                      isHost: payload.role === 'host',
+                      status: 'live' as const,
+                    }
+                  : p
+              );
+            }
             return [
               ...prev,
               {
@@ -197,9 +209,34 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 isSpeaking: false,
                 isSharingScreen: false,
                 isCameraOn: false,
+                status: 'live' as const,
               },
             ];
           });
+        }
+      } else if (type === 'PARTICIPANT_LEFT') {
+        if (payload.userId !== currentUserId) {
+          showToast(`${payload.displayName || 'Partner'} left the room`);
+          setParticipants((prev) =>
+            prev.map((item) =>
+              item.userId === payload.userId
+                ? {
+                    ...item,
+                    status: 'offline' as const,
+                    isSpeaking: false,
+                    isSharingScreen: false,
+                    isMuted: true,
+                  }
+                : item
+            )
+          );
+          if (!isLocalSharing) {
+            setScreenStream(null);
+            setScreenAudioStream(null);
+            setIsScreenSharing(false);
+            setSharerName('');
+            setHasTabAudio(false);
+          }
         }
       } else if (type === 'SCREEN_SHARE_STOPPED') {
         if (!isLocalSharing) {
@@ -232,6 +269,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
       const tokenData: LiveKitTokenResponse = await tokenRes.json();
       if (tokenData.token && !tokenData.isMock) {
+        if (lkRoomRef.current) {
+          lkRoomRef.current.disconnect();
+        }
+
         const lkRoom = new Room({
           adaptiveStream: true,
           dynacast: true,
@@ -245,6 +286,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             setIsScreenSharing(true);
             setIsLocalSharing(false);
             setSharerName(participant.name || 'Partner');
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === participant.identity ? { ...p, isSharingScreen: true } : p
+              )
+            );
           } else if (track.kind === Track.Kind.Audio && publication.source === Track.Source.ScreenShareAudio) {
             const audioStream = new MediaStream([track.mediaStreamTrack]);
             setScreenAudioStream(audioStream);
@@ -252,12 +298,47 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           }
         });
 
-        lkRoom.on(RoomEvent.TrackUnsubscribed, (track, publication) => {
+        lkRoom.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
           if (publication.source === Track.Source.ScreenShare) {
             setScreenStream(null);
             setIsScreenSharing(false);
             setSharerName('');
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === participant.identity ? { ...p, isSharingScreen: false } : p
+              )
+            );
           }
+        });
+
+        lkRoom.on(RoomEvent.TrackMuted, (publication, participant) => {
+          if (publication.kind === Track.Kind.Audio) {
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === participant.identity ? { ...p, isMuted: true } : p
+              )
+            );
+          }
+        });
+
+        lkRoom.on(RoomEvent.TrackUnmuted, (publication, participant) => {
+          if (publication.kind === Track.Kind.Audio) {
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === participant.identity ? { ...p, isMuted: false } : p
+              )
+            );
+          }
+        });
+
+        lkRoom.on(RoomEvent.ActiveSpeakersChanged, (speakers) => {
+          const speakerIds = new Set(speakers.map((s) => s.identity));
+          setParticipants((prev) =>
+            prev.map((p) => ({
+              ...p,
+              isSpeaking: speakerIds.has(p.userId),
+            }))
+          );
         });
 
         lkRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
@@ -266,35 +347,207 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             const data = JSON.parse(decoded);
             if (data.type === 'REACTION') {
               triggerReactionAnimation(data.payload, false);
+            } else if (data.type === 'PARTICIPANT_LEFT') {
+              const { userId, displayName: leftName } = data.payload || {};
+              if (userId && userId !== currentUserId) {
+                showToast(`${leftName || 'Partner'} left the room`);
+                setParticipants((prev) =>
+                  prev.map((item) =>
+                    item.userId === userId
+                      ? {
+                          ...item,
+                          status: 'offline' as const,
+                          isSpeaking: false,
+                          isSharingScreen: false,
+                          isMuted: true,
+                        }
+                      : item
+                  )
+                );
+                setSharerName((currSharer) => {
+                  if (currSharer === leftName || currSharer === 'Partner') {
+                    setScreenStream(null);
+                    setScreenAudioStream(null);
+                    setIsScreenSharing(false);
+                    setHasTabAudio(false);
+                    return '';
+                  }
+                  return currSharer;
+                });
+              }
             }
           } catch (e) {
             console.error('DataReceived decode error:', e);
           }
         });
 
-
+        // Remote participant connected / rejoined
         lkRoom.on(RoomEvent.ParticipantConnected, (p) => {
           showToast(`${p.name || 'Your person'} is here ❤️`);
-          setParticipants((prev) => [
-            ...prev.filter((item) => item.userId !== p.identity),
-            {
-              userId: p.identity,
-              displayName: p.name || 'Guest',
-              isHost: false,
-              isMuted: false,
-              isSpeaking: false,
-              isSharingScreen: false,
-              isCameraOn: false,
-            },
-          ]);
+          setParticipants((prev) => {
+            const existing = prev.find((item) => item.userId === p.identity);
+            if (existing) {
+              return prev.map((item) =>
+                item.userId === p.identity
+                  ? {
+                      ...item,
+                      displayName: p.name || item.displayName,
+                      status: 'live' as const,
+                      isMuted: !p.isMicrophoneEnabled,
+                      isSpeaking: p.isSpeaking,
+                      isSharingScreen: p.isScreenShareEnabled,
+                    }
+                  : item
+              );
+            }
+            return [
+              ...prev,
+              {
+                userId: p.identity,
+                displayName: p.name || 'Partner',
+                isHost: p.identity === room.host_user_id,
+                isMuted: !p.isMicrophoneEnabled,
+                isSpeaking: p.isSpeaking,
+                isSharingScreen: p.isScreenShareEnabled,
+                isCameraOn: false,
+                status: 'live' as const,
+              },
+            ];
+          });
+        });
+
+        // Remote participant left or disconnected
+        lkRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
+          showToast(`${p.name || 'Partner'} left the room`);
+          setParticipants((prev) =>
+            prev.map((item) =>
+              item.userId === p.identity
+                ? {
+                    ...item,
+                    status: 'offline' as const,
+                    isSpeaking: false,
+                    isSharingScreen: false,
+                    isMuted: true,
+                  }
+                : item
+            )
+          );
+          setSharerName((currSharer) => {
+            if (currSharer === p.name || currSharer === 'Partner') {
+              setScreenStream(null);
+              setScreenAudioStream(null);
+              setIsScreenSharing(false);
+              setHasTabAudio(false);
+              return '';
+            }
+            return currSharer;
+          });
+        });
+
+        // Connection quality monitoring: show Reconnecting... during temporary recovery
+        lkRoom.on(RoomEvent.ConnectionQualityChanged, (quality: ConnectionQuality, p: Participant) => {
+          if (p.identity === currentUserId) {
+            if (quality === ConnectionQuality.Lost) {
+              setParticipants((prev) =>
+                prev.map((item) =>
+                  item.userId === currentUserId ? { ...item, status: 'reconnecting' as const } : item
+                )
+              );
+            } else if (quality === ConnectionQuality.Good || quality === ConnectionQuality.Excellent) {
+              setParticipants((prev) =>
+                prev.map((item) =>
+                  item.userId === currentUserId && item.status === 'reconnecting'
+                    ? { ...item, status: 'live' as const }
+                    : item
+                )
+              );
+            }
+          } else {
+            if (quality === ConnectionQuality.Lost) {
+              setParticipants((prev) =>
+                prev.map((item) =>
+                  item.userId === p.identity ? { ...item, status: 'reconnecting' as const } : item
+                )
+              );
+            } else if (quality === ConnectionQuality.Good || quality === ConnectionQuality.Excellent || quality === ConnectionQuality.Poor) {
+              setParticipants((prev) =>
+                prev.map((item) =>
+                  item.userId === p.identity && item.status === 'reconnecting'
+                    ? { ...item, status: 'live' as const }
+                    : item
+                )
+              );
+            }
+          }
+        });
+
+        // Local connection interrupted
+        lkRoom.on(RoomEvent.Reconnecting, () => {
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === currentUserId ? { ...p, status: 'reconnecting' as const } : p
+            )
+          );
+        });
+
+        // Local connection re-established
+        lkRoom.on(RoomEvent.Reconnected, () => {
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === currentUserId ? { ...p, status: 'live' as const } : p
+            )
+          );
+        });
+
+        // Local disconnected
+        lkRoom.on(RoomEvent.Disconnected, () => {
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === currentUserId ? { ...p, status: 'offline' as const } : p
+            )
+          );
         });
 
         await lkRoom.connect(tokenData.serverUrl, tokenData.token);
+
+        // Populate participants already connected in the room
+        lkRoom.remoteParticipants.forEach((p) => {
+          setParticipants((prev) => {
+            const existing = prev.find((item) => item.userId === p.identity);
+            if (existing) {
+              return prev.map((item) =>
+                item.userId === p.identity
+                  ? {
+                      ...item,
+                      displayName: p.name || item.displayName,
+                      status: 'live' as const,
+                      isMuted: !p.isMicrophoneEnabled,
+                      isSpeaking: p.isSpeaking,
+                      isSharingScreen: p.isScreenShareEnabled,
+                    }
+                  : item
+              );
+            }
+            return [
+              ...prev,
+              {
+                userId: p.identity,
+                displayName: p.name || 'Partner',
+                isHost: p.identity === room.host_user_id,
+                isMuted: !p.isMicrophoneEnabled,
+                isSpeaking: p.isSpeaking,
+                isSharingScreen: p.isScreenShareEnabled,
+                isCameraOn: false,
+                status: 'live' as const,
+              },
+            ];
+          });
+        });
       }
     } catch (e) {
       console.warn('LiveKit cloud connection skipped, using local browser WebRTC transport:', e);
     }
-  }, [room.room_code, currentUserId, triggerReactionAnimation, showToast]);
+  }, [room.room_code, room.host_user_id, currentUserId, triggerReactionAnimation, showToast]);
 
   // Handle joining room
   const handleJoinRoom = useCallback(async (name: string) => {
@@ -334,9 +587,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         isSpeaking: false,
         isSharingScreen: false,
         isCameraOn: false,
+        status: 'live',
       };
 
-      setParticipants([selfParticipant]);
+      setParticipants((prev) => {
+        const others = prev.filter((p) => p.userId !== currentUserId);
+        return [selfParticipant, ...others];
+      });
 
       // Broadcast presence to partner
       broadcastChannelRef.current?.postMessage({
@@ -555,19 +812,110 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   };
 
   // Leave room cleanup
-  const handleConfirmLeave = () => {
-    // Stop all media tracks
-    if (localScreenTrackRef.current) localScreenTrackRef.current.stop();
-    if (localScreenAudioTrackRef.current) localScreenAudioTrackRef.current.stop();
-    if (localMicTrackRef.current) localMicTrackRef.current.stop();
-    if (lkRoomRef.current) lkRoomRef.current.disconnect();
+  const handleConfirmLeave = useCallback(() => {
+    // 1. Notify partner over LiveKit Data Channel
+    if (lkRoomRef.current) {
+      try {
+        const payloadBytes = new TextEncoder().encode(
+          JSON.stringify({
+            type: 'PARTICIPANT_LEFT',
+            payload: { userId: currentUserId, displayName },
+          })
+        );
+        void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+      } catch (err) {
+        console.warn('Could not broadcast leave message over LiveKit:', err);
+      }
+    }
+
+    // 2. Broadcast to local tabs
+    broadcastChannelRef.current?.postMessage({
+      type: 'PARTICIPANT_LEFT',
+      payload: { userId: currentUserId, displayName },
+    });
+
+    // 3. Notify backend / Supabase
+    try {
+      void fetch('/api/room/leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ roomCode: room.room_code, userId: currentUserId }),
+      });
+    } catch {
+      // ignore
+    }
+
+    // 4. Update self status to offline
+    setParticipants((prev) =>
+      prev.map((p) => (p.userId === currentUserId ? { ...p, status: 'offline' as const } : p))
+    );
+
+    // 5. Stop all media tracks and disconnect LiveKit
+    if (localScreenTrackRef.current) {
+      localScreenTrackRef.current.stop();
+      localScreenTrackRef.current = null;
+    }
+    if (localScreenAudioTrackRef.current) {
+      localScreenAudioTrackRef.current.stop();
+      localScreenAudioTrackRef.current = null;
+    }
+    if (localMicTrackRef.current) {
+      localMicTrackRef.current.stop();
+      localMicTrackRef.current = null;
+    }
+    if (lkRoomRef.current) {
+      lkRoomRef.current.disconnect();
+    }
     ambienceManager.stop();
 
     setIsLeaveModalOpen(true);
-  };
+  }, [currentUserId, displayName, room.room_code]);
+
+  // Handle tab close / unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      broadcastChannelRef.current?.postMessage({
+        type: 'PARTICIPANT_LEFT',
+        payload: { userId: currentUserId, displayName },
+      });
+
+      if (navigator.sendBeacon) {
+        const data = JSON.stringify({ roomCode: room.room_code, userId: currentUserId });
+        navigator.sendBeacon('/api/room/leave', data);
+      }
+
+      if (lkRoomRef.current) {
+        lkRoomRef.current.disconnect();
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [currentUserId, displayName, room.room_code]);
+
+  // Clean up LiveKit room and broadcast channel on unmount
+  useEffect(() => {
+    return () => {
+      if (lkRoomRef.current) {
+        lkRoomRef.current.disconnect();
+        lkRoomRef.current = null;
+      }
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
+      }
+    };
+  }, []);
 
   const currentTheme = THEMES[theme];
-  const partnerNames = participants.map((p) => p.displayName).join(' & ');
+  const activeParticipants = participants.filter((p) => p.status === 'live');
+  const partnerNames = activeParticipants.map((p) => p.displayName).join(' & ');
+  const onlineCount = activeParticipants.length;
 
   return (
     <div
@@ -588,7 +936,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         roomTitle={room.title}
         theme={theme}
         onThemeChange={handleThemeChange}
-        participantCount={participants.length}
+        participantCount={onlineCount}
         partnerNames={partnerNames}
         isConnected={isJoined}
         onOpenInvite={() => setIsInviteModalOpen(true)}
@@ -618,7 +966,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             hasTabAudio={hasTabAudio}
             theme={theme}
             isTheaterMode={isTheaterMode}
-            participantCount={participants.length}
+            participantCount={onlineCount}
             onOpenInvite={() => setIsInviteModalOpen(true)}
             onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
             onOpenAudioHelp={() => setIsAudioHelpOpen(true)}

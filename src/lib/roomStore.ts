@@ -237,6 +237,26 @@ export async function isRoomMember(roomId: string, userId: string): Promise<bool
   return members.some((m) => m.user_id === userId);
 }
 
+export async function removeRoomMember(roomId: string, userId: string): Promise<void> {
+  if (!roomId || !userId) return;
+  const supabase = getSupabaseServer();
+  if (supabase) {
+    try {
+      await supabase
+        .from('room_members')
+        .delete()
+        .eq('room_id', roomId)
+        .eq('user_id', userId);
+    } catch (e) {
+      console.warn('Supabase member remove error:', e);
+    }
+  }
+
+  const existing = global.__MOONLIT_MEMBERS!.get(roomId) || [];
+  const filtered = existing.filter((m) => m.user_id !== userId);
+  global.__MOONLIT_MEMBERS!.set(roomId, filtered);
+}
+
 
 export async function getRoomMessages(roomId: string): Promise<RoomMessage[]> {
   const supabase = getSupabaseServer();
