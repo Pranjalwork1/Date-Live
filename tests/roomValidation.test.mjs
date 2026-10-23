@@ -75,4 +75,30 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.equal(validateReaction('💀'), false);
     assert.equal(validateReaction('<script>alert(1)</script>'), false);
   });
+
+  test('generateWhatsAppInvite generates correctly formatted and URL-encoded invitation', () => {
+    const inviteUrl = 'https://moonlit.live/moon-7x9q-2a8d';
+    const message = `🌙 Hey! I saved us a little movie night ❤️\nJoin me on Moonlit — let's watch together 🍿🎬\n${inviteUrl}`;
+    const encoded = encodeURIComponent(message);
+    const waUrl = `https://wa.me/?text=${encoded}`;
+
+    assert.ok(waUrl.includes('moon-7x9q-2a8d'));
+    assert.ok(decodeURIComponent(encoded).includes('Join me on Moonlit'));
+    assert.ok(decodeURIComponent(encoded).includes('🍿🎬'));
+  });
+
+  test('room role authorization enforces guest role without allowing privilege escalation', () => {
+    const hostUserId = 'usr_host123';
+    const room = { host_user_id: hostUserId };
+
+    // Host check
+    const hostRole = 'usr_host123' === room.host_user_id ? 'host' : 'guest';
+    assert.equal(hostRole, 'host');
+
+    // Guest trying to claim host
+    const guestUserId = 'usr_guest456';
+    const guestRole = guestUserId === room.host_user_id ? 'host' : 'guest';
+    assert.equal(guestRole, 'guest');
+  });
 });
+

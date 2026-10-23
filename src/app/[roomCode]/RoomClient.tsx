@@ -23,6 +23,7 @@ import ControlDock from '@/components/room/ControlDock';
 import FloatingReactionsOverlay from '@/components/room/FloatingReactionsOverlay';
 import AudioInfoModal from '@/components/room/AudioInfoModal';
 import LeaveSummaryModal from '@/components/room/LeaveSummaryModal';
+import InvitePartnerModal from '@/components/modals/InvitePartnerModal';
 import { Heart, Loader2, Sparkles } from 'lucide-react';
 
 interface RoomClientProps {
@@ -91,8 +92,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [isAmbienceActive, setIsAmbienceActive] = useState(false);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [sessionStartTime] = useState<number>(() => Date.now());
   const [elapsedFormatted, setElapsedFormatted] = useState('00:00');
+  const autoJoinedRef = useRef(false);
 
   // Romantic Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -204,72 +207,21 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     };
   }, [room.room_code, currentUserId, isChatOpen, isLocalSharing, showToast, triggerReactionAnimation]);
 
-  // Handle joining room
-  const handleJoinRoom = async (name: string) => {
-    if (!name.trim()) return;
-    setIsJoining(true);
-    setErrorMessage(null);
-
+  // Chat message loading
+  const loadMessages = useCallback(async () => {
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('moonlit_name', name.trim());
-      }
-      setDisplayName(name.trim());
-
-      const res = await fetch('/api/room/join', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          roomCode: room.room_code,
-          displayName: name.trim(),
-          userId: currentUserId,
-        }),
-      });
-
+      const res = await fetch(`/api/messages?roomId=${room.id}`);
       const data = await res.json();
-      if (!res.ok || data.error) {
-        throw new Error(data.error || 'Failed to join room');
+      if (data.success && data.messages) {
+        setMessages(data.messages);
       }
-
-      setIsJoined(true);
-
-      // Add self to participants list
-      const selfParticipant: ParticipantState = {
-        userId: currentUserId,
-        displayName: name.trim(),
-        isHost: currentUserId === room.host_user_id || data.member?.role === 'host',
-        isMuted: false,
-        isSpeaking: false,
-        isSharingScreen: false,
-        isCameraOn: false,
-      };
-
-      setParticipants([selfParticipant]);
-
-      // Broadcast presence to partner
-      broadcastChannelRef.current?.postMessage({
-        type: 'PARTICIPANT_JOINED',
-        payload: {
-          userId: currentUserId,
-          displayName: name.trim(),
-          role: selfParticipant.isHost ? 'host' : 'guest',
-        },
-      });
-
-      // Connect to LiveKit
-      await initializeLiveKit(name.trim());
-
-      // Fetch existing room messages
-      loadMessages();
-    } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Join error');
-    } finally {
-      setIsJoining(false);
+    } catch (e) {
+      console.warn('Failed to load chat messages:', e);
     }
-  };
+  }, [room.id]);
 
   // Connect to LiveKit Room
-  const initializeLiveKit = async (userName: string) => {
+  const initializeLiveKit = useCallback(async (userName: string) => {
     try {
       const tokenRes = await fetch('/api/livekit/token', {
         method: 'POST',
@@ -344,7 +296,89 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     } catch (e) {
       console.warn('LiveKit cloud connection skipped, using local browser WebRTC transport:', e);
     }
-  };
+  }, [room.room_code, currentUserId, triggerReactionAnimation, showToast]);
+
+  // Handle joining room
+  const handleJoinRoom = useCallback(async (name: string) => {
+    if (!name.trim()) return;
+    setIsJoining(true);
+    setErrorMessage(null);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('moonlit_name', name.trim());
+      }
+      setDisplayName(name.trim());
+
+      const res = await fetch('/api/room/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomCode: room.room_code,
+          displayName: name.trim(),
+          userId: currentUserId,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        throw new Error(data.error || 'Failed to join room');
+      }
+
+      setIsJoined(true);
+
+      // Add self to participants list
+      const selfParticipant: ParticipantState = {
+        userId: currentUserId,
+        displayName: name.trim(),
+        isHost: currentUserId === room.host_user_id || data.member?.role === 'host',
+        isMuted: false,
+        isSpeaking: false,
+        isSharingScreen: false,
+        isCameraOn: false,
+      };
+
+      setParticipants([selfParticipant]);
+
+      // Broadcast presence to partner
+      broadcastChannelRef.current?.postMessage({
+        type: 'PARTICIPANT_JOINED',
+        payload: {
+          userId: currentUserId,
+          displayName: name.trim(),
+          role: selfParticipant.isHost ? 'host' : 'guest',
+        },
+      });
+
+      // Connect to LiveKit
+      await initializeLiveKit(name.trim());
+
+      // Fetch existing room messages
+      loadMessages();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Join error');
+    } finally {
+      setIsJoining(false);
+    }
+  }, [room.room_code, room.host_user_id, currentUserId, initializeLiveKit, loadMessages]);
+
+  // Auto-join for the host who created the room
+  useEffect(() => {
+    if (autoJoinedRef.current) return;
+    if (
+      !isJoined &&
+      currentUserId &&
+      (currentUserId === room.host_user_id || (displayName && displayName === room.host_name))
+    ) {
+      autoJoinedRef.current = true;
+      const targetName = displayName || room.host_name;
+      const timer = setTimeout(() => {
+        void handleJoinRoom(targetName);
+      }, 0);
+      return () => clearTimeout(timer);
+    }
+  }, [currentUserId, room.host_user_id, room.host_name, displayName, isJoined, handleJoinRoom]);
+
 
   // Screen Sharing Trigger (Browser Native Media with tab audio)
   const handleToggleScreenShare = async () => {
@@ -479,18 +513,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Chat message loading & sending
-  const loadMessages = async () => {
-    try {
-      const res = await fetch(`/api/messages?roomId=${room.id}`);
-      const data = await res.json();
-      if (data.success && data.messages) {
-        setMessages(data.messages);
-      }
-    } catch (e) {
-      console.warn('Failed to load chat messages:', e);
-    }
-  };
+  // Chat message sending
 
   const handleSendMessage = async (content: string) => {
     const res = await fetch('/api/messages', {
@@ -548,6 +571,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   };
 
   const currentTheme = THEMES[theme];
+  const partnerNames = participants.map((p) => p.displayName).join(' & ');
 
   return (
     <div
@@ -569,7 +593,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         theme={theme}
         onThemeChange={handleThemeChange}
         participantCount={participants.length}
+        partnerNames={partnerNames}
         isConnected={isJoined}
+        onOpenInvite={() => setIsInviteModalOpen(true)}
         onLeaveRoom={handleConfirmLeave}
         onToggleAmbience={handleToggleAmbience}
         isAmbienceActive={isAmbienceActive}
@@ -596,6 +622,8 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             hasTabAudio={hasTabAudio}
             theme={theme}
             isTheaterMode={isTheaterMode}
+            participantCount={participants.length}
+            onOpenInvite={() => setIsInviteModalOpen(true)}
             onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
             onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
             onStartScreenShare={handleToggleScreenShare}
@@ -645,15 +673,22 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       {/* Modal: Guest Display Name Prompt on direct link entry */}
       {!isJoined && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl">
-          <div className="w-full max-w-md rounded-3xl border border-rose-500/20 bg-[#0d0f1f] p-6 text-white shadow-2xl">
-            <div className="flex items-center gap-2 text-rose-400 text-xs font-semibold uppercase mb-1">
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>Movie Night Invitation</span>
+          <div className="w-full max-w-md rounded-3xl border border-rose-500/25 bg-[#0d0f1f]/95 p-6 sm:p-8 text-white shadow-2xl backdrop-blur-2xl">
+            <div className="flex flex-col items-center text-center gap-2 mb-5">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-purple-500 text-white shadow-lg shadow-rose-500/30">
+                <Heart className="h-6 w-6 fill-current animate-pulse" />
+              </div>
+              <div className="flex items-center gap-1.5 text-rose-400 text-xs font-semibold uppercase tracking-wider">
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Movie Date Invitation</span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+                {room.host_name} invited you to {room.title} ❤️
+              </h3>
+              <p className="text-xs text-slate-300 leading-relaxed max-w-xs">
+                Enter your name below to step into your private virtual cinema for two.
+              </p>
             </div>
-            <h3 className="text-xl font-bold text-white mb-2">{room.title}</h3>
-            <p className="text-xs text-slate-300 mb-4">
-              Hosted by <strong className="text-rose-300 font-semibold">{room.host_name}</strong>. Enter your name below to join the date room.
-            </p>
 
             {errorMessage && (
               <div className="mb-4 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-300">
@@ -666,21 +701,24 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 e.preventDefault();
                 handleJoinRoom(joinNameInput);
               }}
-              className="flex flex-col gap-3"
+              className="flex flex-col gap-3.5"
             >
-              <input
-                type="text"
-                required
-                maxLength={40}
-                placeholder="What should we call you?"
-                value={joinNameInput}
-                onChange={(e) => setJoinNameInput(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none"
-              />
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-medium text-slate-300">Your Name</label>
+                <input
+                  type="text"
+                  required
+                  maxLength={40}
+                  placeholder="What should we call you?"
+                  value={joinNameInput}
+                  onChange={(e) => setJoinNameInput(e.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none transition-all"
+                />
+              </div>
               <button
                 type="submit"
                 disabled={isJoining || !joinNameInput.trim()}
-                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 disabled:opacity-50 transition-all active:scale-95"
+                className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 hover:opacity-95 disabled:opacity-50 transition-all active:scale-95 cursor-pointer"
               >
                 {isJoining ? (
                   <>
@@ -690,7 +728,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 ) : (
                   <>
                     <Heart className="h-4 w-4 fill-current" />
-                    <span>Join Movie Date</span>
+                    <span>Join Movie Date ❤️</span>
                   </>
                 )}
               </button>
@@ -698,6 +736,14 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           </div>
         </div>
       )}
+
+      {/* In-Room Invite Partner Modal */}
+      <InvitePartnerModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        roomCode={room.room_code}
+        roomTitle={room.title}
+      />
 
       {/* Audio Info Modal */}
       <AudioInfoModal
@@ -712,6 +758,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         durationFormatted={elapsedFormatted}
         onRejoin={() => setIsLeaveModalOpen(false)}
       />
+
     </div>
   );
 }

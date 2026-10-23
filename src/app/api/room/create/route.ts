@@ -5,7 +5,7 @@ import { ThemeType } from '@/lib/types';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { hostName, title, theme } = body;
+    const { hostName, title, theme, hostUserId } = body;
 
     if (!hostName || typeof hostName !== 'string' || !hostName.trim()) {
       return NextResponse.json(
@@ -18,11 +18,13 @@ export async function POST(req: NextRequest) {
     const cleanTitle = (title && typeof title === 'string') ? title.trim().slice(0, 80) : 'Our Movie Night';
     const validThemes: ThemeType[] = ['midnight', 'candlelight', 'lavender', 'cinema'];
     const chosenTheme: ThemeType = validThemes.includes(theme) ? theme : 'midnight';
+    const cleanHostUserId = (hostUserId && typeof hostUserId === 'string') ? hostUserId.trim() : undefined;
 
     const room = await createRoom({
       hostName: cleanHostName,
       title: cleanTitle,
       theme: chosenTheme,
+      hostUserId: cleanHostUserId,
     });
 
     return NextResponse.json({

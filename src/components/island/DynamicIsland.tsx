@@ -25,9 +25,11 @@ interface DynamicIslandProps {
   theme?: ThemeType;
   onThemeChange?: (theme: ThemeType) => void;
   participantCount?: number;
+  partnerNames?: string;
   isConnected?: boolean;
   onOpenCreate?: () => void;
   onOpenJoin?: () => void;
+  onOpenInvite?: () => void;
   onLeaveRoom?: () => void;
   onToggleAmbience?: () => void;
   isAmbienceActive?: boolean;
@@ -40,9 +42,11 @@ export default function DynamicIsland({
   theme = 'midnight',
   onThemeChange,
   participantCount = 1,
+  partnerNames,
   isConnected = true,
   onOpenCreate,
   onOpenJoin,
+  onOpenInvite,
   onLeaveRoom,
   onToggleAmbience,
   isAmbienceActive = false,
@@ -207,69 +211,85 @@ export default function DynamicIsland({
         ) : (
           /* IN-ROOM LIVE SESSION ISLAND */
           <div className="flex flex-col">
-            {/* Collapsed Capsule Bar */}
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="flex items-center gap-3 px-4 py-2 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/50 rounded-full cursor-pointer"
-              aria-expanded={isExpanded}
-              aria-label="Toggle movie session controls"
-            >
-              {/* Connection Indicator Dot */}
-              <div className="relative flex items-center justify-center">
-                <span
-                  className={`h-2.5 w-2.5 rounded-full ${
-                    isConnected ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-rose-400 shadow-[0_0_8px_#fb7185]'
+            {/* Capsule Bar */}
+            <div className="flex items-center gap-2 sm:gap-3 px-3.5 sm:px-4 py-2">
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center gap-2.5 sm:gap-3 text-left focus:outline-none rounded-full cursor-pointer"
+                aria-expanded={isExpanded}
+                aria-label="Toggle movie session controls"
+              >
+                {/* Connection Indicator Dot */}
+                <div className="relative flex items-center justify-center shrink-0">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      isConnected ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-rose-400 shadow-[0_0_8px_#fb7185]'
+                    }`}
+                  />
+                  {isConnected && (
+                    <span className="absolute h-4 w-4 rounded-full bg-emerald-400/30 animate-ping" />
+                  )}
+                </div>
+
+                {/* Status & Title */}
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-semibold text-white tracking-tight line-clamp-1 max-w-[100px] sm:max-w-[150px]">
+                      {roomTitle}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-medium shrink-0">
+                      {participantCount >= 2
+                        ? `Together now · ${partnerNames || '2 joined'}`
+                        : 'Waiting for your person...'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Session Timer */}
+                <div className="hidden md:flex items-center gap-1 text-xs font-mono text-slate-300 px-2 py-0.5 rounded-full bg-white/5 border border-white/10 shadow-inner">
+                  <span>{formatTimer(elapsedSeconds)}</span>
+                </div>
+
+                {/* Overlapping Two-Person Avatar Stack */}
+                <div className="flex -space-x-1.5 items-center pl-0.5">
+                  <div
+                    className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 border-2 border-black flex items-center justify-center text-[10px] text-white font-bold shadow-sm"
+                    title="You"
+                  >
+                    Y
+                  </div>
+                  <div
+                    className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${
+                      participantCount >= 2
+                        ? 'bg-gradient-to-tr from-purple-500 to-indigo-500'
+                        : 'bg-white/10 text-slate-400 border-dashed'
+                    }`}
+                    title={participantCount >= 2 ? 'Partner' : 'Waiting for partner'}
+                  >
+                    {participantCount >= 2 ? 'P' : '💌'}
+                  </div>
+                </div>
+
+                {/* Expand Caret */}
+                <ChevronDown
+                  className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
+                    isExpanded ? 'rotate-180 text-rose-400' : ''
                   }`}
                 />
-                {isConnected && (
-                  <span className="absolute h-4 w-4 rounded-full bg-emerald-400/30 animate-ping" />
-                )}
-              </div>
+              </button>
 
-              {/* Status & Title */}
-              <div className="flex flex-col">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-white tracking-tight line-clamp-1 max-w-[110px] sm:max-w-[160px]">
-                    {roomTitle}
-                  </span>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-medium">
-                    {participantCount >= 2 ? 'Together now ❤️' : 'Solo 🍿'}
-                  </span>
-                </div>
-              </div>
-
-              {/* Session Timer */}
-              <div className="hidden xs:flex items-center gap-1 text-xs font-mono text-slate-300 px-2.5 py-0.5 rounded-full bg-white/5 border border-white/10 shadow-inner">
-                <span>{formatTimer(elapsedSeconds)}</span>
-              </div>
-
-              {/* Overlapping Two-Person Avatar Stack */}
-              <div className="flex -space-x-2 items-center pl-1">
-                <div
-                  className="h-6 w-6 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 border-2 border-black flex items-center justify-center text-[10px] text-white font-bold shadow-sm"
-                  title="You"
+              {/* Accessible Invite Button Inside Dynamic Island */}
+              {onOpenInvite && (
+                <button
+                  onClick={onOpenInvite}
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-gradient-to-r from-rose-500/25 to-pink-500/25 hover:from-rose-500/40 hover:to-pink-500/40 border border-rose-500/40 text-rose-200 text-xs font-semibold shadow-sm transition-all active:scale-95 cursor-pointer shrink-0"
+                  title="Invite your partner"
                 >
-                  Y
-                </div>
-                <div
-                  className={`h-6 w-6 rounded-full border-2 border-black flex items-center justify-center text-[10px] text-white font-bold shadow-sm ${
-                    participantCount >= 2
-                      ? 'bg-gradient-to-tr from-purple-500 to-indigo-500'
-                      : 'bg-white/10 text-slate-400 border-dashed'
-                  }`}
-                  title={participantCount >= 2 ? 'Partner' : 'Waiting for partner'}
-                >
-                  {participantCount >= 2 ? 'P' : '💌'}
-                </div>
-              </div>
-
-              {/* Expand Caret */}
-              <ChevronDown
-                className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 ${
-                  isExpanded ? 'rotate-180 text-rose-400' : ''
-                }`}
-              />
-            </button>
+                  <Heart className="h-3 w-3 fill-current text-rose-400 animate-pulse" />
+                  <span>Invite ❤️</span>
+                </button>
+              )}
+            </div>
 
             {/* Expanded Session Details Drawer */}
             <AnimatePresence>
@@ -281,6 +301,20 @@ export default function DynamicIsland({
                   transition={{ duration: 0.22 }}
                   className="px-5 pb-4 pt-2 border-t border-white/10 flex flex-col gap-3.5 min-w-[290px] sm:min-w-[360px]"
                 >
+                  {/* In-Drawer Quick Invite Bar */}
+                  {onOpenInvite && (
+                    <button
+                      onClick={() => {
+                        setIsExpanded(false);
+                        onOpenInvite();
+                      }}
+                      className="flex items-center justify-center gap-2 w-full py-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-semibold shadow-md shadow-rose-500/25 hover:opacity-95 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Heart className="h-3.5 w-3.5 fill-current" />
+                      <span>Invite Your Person ❤️</span>
+                    </button>
+                  )}
+
                   {/* Room Code & Copy */}
                   <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white/5 border border-white/10 shadow-inner">
                     <div className="flex flex-col">
@@ -289,7 +323,7 @@ export default function DynamicIsland({
                     </div>
                     <button
                       onClick={copyInviteLink}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold transition-colors active:scale-95"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 text-xs font-semibold transition-colors active:scale-95 cursor-pointer"
                     >
                       {copied ? (
                         <>

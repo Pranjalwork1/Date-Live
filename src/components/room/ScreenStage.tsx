@@ -28,6 +28,8 @@ interface ScreenStageProps {
   onToggleTheaterMode: () => void;
   onOpenAudioHelp: () => void;
   onStartScreenShare?: () => void;
+  onOpenInvite?: () => void;
+  participantCount?: number;
 }
 
 export default function ScreenStage({
@@ -42,6 +44,8 @@ export default function ScreenStage({
   onToggleTheaterMode,
   onOpenAudioHelp,
   onStartScreenShare,
+  onOpenInvite,
+  participantCount = 1,
 }: ScreenStageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -229,35 +233,81 @@ export default function ScreenStage({
             <div className="absolute -bottom-2 -left-2 text-2xl animate-bounce">🍿</div>
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
-            Your movie night starts here
-          </h2>
-
-          <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
-            Share your favorite movie or show with your person. For full sound, choose your browser tab and enable <strong className="text-rose-300 font-medium">&quot;Also share tab audio&quot;</strong>.
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3">
-            {onStartScreenShare && (
-              <button
-                onClick={onStartScreenShare}
-                className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
-              >
-                <ScreenShare className="h-4 w-4" />
-                <span>Share Screen Now</span>
-              </button>
-            )}
-
-            <button
-              onClick={onOpenAudioHelp}
-              className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
-            >
-              <Radio className="h-3.5 w-3.5 text-rose-400" />
-              <span>Audio guide</span>
-              <Info className="h-3 w-3 text-slate-400" />
-            </button>
-          </div>
+          {participantCount < 2 ? (
+            <>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+                Your movie night is waiting 🌙
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
+                Invite your person to start watching together. You can share your screen, movie sound, and talk freely.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {onOpenInvite && (
+                  <button
+                    onClick={onOpenInvite}
+                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <span>Invite ❤️</span>
+                  </button>
+                )}
+                {onStartScreenShare && (
+                  <button
+                    onClick={onStartScreenShare}
+                    className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 hover:bg-white/15 px-5 py-2.5 text-xs font-semibold text-white shadow transition-all active:scale-95 cursor-pointer"
+                  >
+                    <ScreenShare className="h-4 w-4 text-rose-300" />
+                    <span>Share Screen</span>
+                  </button>
+                )}
+                <button
+                  onClick={onOpenAudioHelp}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
+                >
+                  <Radio className="h-3.5 w-3.5 text-rose-400" />
+                  <span>Audio guide</span>
+                  <Info className="h-3 w-3 text-slate-400" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+                Your movie night starts here
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
+                Share your favorite movie or show with your person. For full sound, choose your browser tab and enable <strong className="text-rose-300 font-medium">&quot;Also share tab audio&quot;</strong>.
+              </p>
+              <div className="flex flex-col sm:flex-row items-center gap-3">
+                {onStartScreenShare && (
+                  <button
+                    onClick={onStartScreenShare}
+                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <ScreenShare className="h-4 w-4" />
+                    <span>Share Screen Now</span>
+                  </button>
+                )}
+                {onOpenInvite && (
+                  <button
+                    onClick={onOpenInvite}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2.5 text-xs text-rose-300 font-medium transition-all cursor-pointer"
+                  >
+                    <span>Invite Link ❤️</span>
+                  </button>
+                )}
+                <button
+                  onClick={onOpenAudioHelp}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
+                >
+                  <Radio className="h-3.5 w-3.5 text-rose-400" />
+                  <span>Audio guide</span>
+                  <Info className="h-3 w-3 text-slate-400" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
+
       )}
 
       {/* Floating Theater Mode Toggle in Corner */}

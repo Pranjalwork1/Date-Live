@@ -3,7 +3,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { X, Sparkles, Heart, Film, Copy, Check, ArrowRight, Loader2 } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Heart,
+  Film,
+  Copy,
+  Check,
+  ArrowRight,
+  Loader2,
+  Share2,
+  MessageCircle,
+  Moon,
+} from 'lucide-react';
 import { ThemeType } from '@/lib/types';
 import { THEMES } from '@/lib/themes';
 
@@ -25,12 +37,19 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Success state with copyable link
+  // Success state with invitation details
   const [createdRoom, setCreatedRoom] = useState<{
     code: string;
+    title: string;
     url: string;
   } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,8 +62,14 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
     setError(null);
 
     try {
+      let hostUserId = '';
       if (typeof window !== 'undefined') {
         localStorage.setItem('moonlit_name', displayName.trim());
+        hostUserId = localStorage.getItem('moonlit_user_id') || '';
+        if (!hostUserId) {
+          hostUserId = `usr_${Math.random().toString(36).substring(2, 10)}`;
+          localStorage.setItem('moonlit_user_id', hostUserId);
+        }
       }
 
       const res = await fetch('/api/room/create', {
@@ -54,6 +79,7 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
           hostName: displayName.trim(),
           title: roomTitle.trim() || 'Our Movie Night',
           theme,
+          hostUserId,
         }),
       });
 
@@ -62,9 +88,15 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
         throw new Error(data.error || 'Failed to create room');
       }
 
-      const inviteUrl = `${window.location.origin}/${data.room.room_code}`;
+      const origin =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : process.env.NEXT_PUBLIC_APP_URL || 'https://moonlit.live';
+
+      const inviteUrl = `${origin}/${data.room.room_code}`;
       setCreatedRoom({
         code: data.room.room_code,
+        title: data.room.title || 'Our Movie Night',
         url: inviteUrl,
       });
     } catch (err: unknown) {
@@ -74,16 +106,68 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (!createdRoom) return;
-    navigator.clipboard.writeText(createdRoom.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(createdRoom.url);
+      } else {
+        // Fallback for non-secure contexts
+        const textArea = document.createElement('textarea');
+        textArea.value = createdRoom.url;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+      setCopied(true);
+      showToast('Invitation link copied to clipboard ❤️');
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      showToast('Failed to copy. Please select the link manually.');
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    if (!createdRoom) return;
+    const message = `🌙 Hey! I saved us a little movie night ❤️\nJoin me on Moonlit — let's watch together 🍿🎬\n${createdRoom.url}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleNativeShare = async () => {
+    if (!createdRoom) return;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: '🌙 Our Movie Night',
+          text: "Join me for a movie night on Moonlit ❤️🍿",
+          url: createdRoom.url,
+        });
+        showToast('Shared successfully ❤️');
+      } catch (err: unknown) {
+        if ((err as Error)?.name !== 'AbortError') {
+          handleCopyLink();
+        }
+      }
+    } else {
+      handleCopyLink();
+    }
   };
 
   const handleEnterRoom = () => {
     if (!createdRoom) return;
     router.push(`/${createdRoom.code}`);
+  };
+
+  const handleModalClose = () => {
+    setCreatedRoom(null);
+    setError(null);
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -96,24 +180,33 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
+          onClick={handleModalClose}
           className="fixed inset-0 bg-black/80 backdrop-blur-md"
         />
+
+        {/* Floating Toast Notification */}
+        {toastMessage && (
+          <div className="fixed top-8 left-1/2 -translate-x-1/2 z-60 rounded-full border border-rose-500/40 bg-black/90 px-4 py-2 text-xs font-semibold text-rose-200 shadow-2xl backdrop-blur-xl flex items-center gap-2 animate-fade-in">
+            <Heart className="h-3.5 w-3.5 text-rose-400 fill-current animate-pulse" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
 
         {/* Modal Window */}
         <motion.div
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-rose-500/20 bg-[#0d0f1f]/95 p-6 shadow-2xl text-white backdrop-blur-2xl"
+          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-rose-500/25 bg-[#0d0f1f]/95 p-6 shadow-2xl text-white backdrop-blur-2xl"
           style={{
-            boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8), 0 0 40px -10px rgba(244,63,94,0.3)',
+            boxShadow: '0 25px 60px -15px rgba(0,0,0,0.85), 0 0 40px -10px rgba(244,63,94,0.3)',
           }}
         >
           {/* Close button */}
           <button
-            onClick={onClose}
-            className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            onClick={handleModalClose}
+            className="absolute top-5 right-5 p-1.5 rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+            aria-label="Close"
           >
             <X className="h-4 w-4" />
           </button>
@@ -182,7 +275,7 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
                         type="button"
                         key={tKey}
                         onClick={() => setTheme(tKey)}
-                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                        className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
                           isSelected
                             ? 'border-rose-500/70 bg-rose-500/15 shadow-sm shadow-rose-500/20'
                             : 'border-white/5 bg-white/5 hover:bg-white/10 text-slate-400'
@@ -241,38 +334,47 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
               </button>
             </form>
           ) : (
-            /* Room Created — Share Link Screen */
+            /* Room Created — Production Ready Invitation Screen */
             <div className="flex flex-col gap-5 py-2">
               <div className="flex flex-col items-center text-center gap-2">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 to-purple-500 text-white shadow-xl shadow-rose-500/30">
-                  <Heart className="h-7 w-7 fill-current animate-pulse" />
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-tr from-rose-500 via-pink-500 to-purple-600 text-white shadow-xl shadow-rose-500/35">
+                  <Moon className="h-7 w-7 fill-current" />
                 </div>
-                <h3 className="text-xl font-bold text-white tracking-tight">Your Room is Ready!</h3>
-                <p className="text-xs text-slate-300 max-w-xs">
-                  Copy the invitation link below and send it to your partner. They can join with a single click.
-                </p>
+                <div className="flex flex-col gap-1 mt-1">
+                  <span className="text-xs uppercase tracking-widest text-rose-400 font-semibold">
+                    {createdRoom.title}
+                  </span>
+                  <h3 className="text-xl font-bold text-white tracking-tight">
+                    Your movie night is ready 🌙
+                  </h3>
+                  <p className="text-xs text-slate-300/90 max-w-xs leading-relaxed">
+                    Invite your person and start your little movie night together.
+                  </p>
+                </div>
               </div>
 
-              {/* Link Box */}
-              <div className="flex flex-col gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5">
-                <span className="text-[10px] uppercase font-semibold tracking-wider text-rose-300">
-                  Shareable Invitation Link
-                </span>
+              {/* Read-Only Invitation URL Box */}
+              <div className="flex flex-col gap-2 rounded-2xl border border-rose-500/30 bg-rose-500/10 p-3.5 backdrop-blur-md">
+                <div className="flex items-center justify-between text-[10px] uppercase font-semibold tracking-wider text-rose-300">
+                  <span>Private Invitation Link</span>
+                  <span className="text-slate-400 font-normal">Click or copy</span>
+                </div>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     readOnly
                     value={createdRoom.url}
-                    className="w-full bg-black/40 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 select-all font-mono"
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                    className="w-full bg-black/50 border border-white/10 rounded-xl px-3 py-2 text-xs text-rose-100 select-all font-mono focus:outline-none focus:border-rose-500/60"
                   />
                   <button
                     onClick={handleCopyLink}
-                    className="flex shrink-0 items-center gap-1.5 rounded-lg bg-rose-500 hover:bg-rose-400 px-3 py-1.5 text-xs font-semibold text-white shadow transition-all active:scale-95"
+                    className="flex shrink-0 items-center gap-1.5 rounded-xl bg-rose-500 hover:bg-rose-400 px-3.5 py-2 text-xs font-semibold text-white shadow-md shadow-rose-500/30 transition-all active:scale-95 cursor-pointer"
                   >
                     {copied ? (
                       <>
                         <Check className="h-3.5 w-3.5 text-white" />
-                        <span>Copied!</span>
+                        <span>Copied ✓</span>
                       </>
                     ) : (
                       <>
@@ -284,12 +386,31 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
                 </div>
               </div>
 
+              {/* Action Buttons: WhatsApp & Native Share */}
+              <div className="grid grid-cols-2 gap-2.5">
+                <button
+                  onClick={handleWhatsAppShare}
+                  className="flex items-center justify-center gap-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 px-3.5 py-2.5 text-xs font-semibold text-white shadow-md shadow-emerald-600/25 transition-all active:scale-95 cursor-pointer"
+                >
+                  <MessageCircle className="h-4 w-4 fill-current" />
+                  <span>WhatsApp</span>
+                </button>
+
+                <button
+                  onClick={handleNativeShare}
+                  className="flex items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/10 hover:bg-white/15 px-3.5 py-2.5 text-xs font-semibold text-white shadow transition-all active:scale-95 cursor-pointer"
+                >
+                  <Share2 className="h-4 w-4" />
+                  <span>Share</span>
+                </button>
+              </div>
+
               {/* Enter Room CTA */}
               <button
                 onClick={handleEnterRoom}
-                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-purple-600 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/30 hover:opacity-95 active:scale-[0.98] transition-all"
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-[0.98] transition-all cursor-pointer"
               >
-                <span>Enter Room Now</span>
+                <span>Enter Room</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
             </div>
@@ -299,3 +420,4 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
     </AnimatePresence>
   );
 }
+

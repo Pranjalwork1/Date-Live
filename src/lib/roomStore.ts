@@ -30,9 +30,10 @@ export async function createRoom(data: {
   title?: string;
   hostName: string;
   theme?: ThemeType;
+  hostUserId?: string;
 }): Promise<DateRoom> {
   const roomCode = generateRoomCode();
-  const hostUserId = `usr_${Math.random().toString(36).substring(2, 10)}`;
+  const hostUserId = data.hostUserId?.trim() || `usr_${Math.random().toString(36).substring(2, 10)}`;
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const title = (data.title || '').trim() || 'Our Movie Night';
   const theme: ThemeType = data.theme || 'midnight';
@@ -148,6 +149,30 @@ export async function getRoomByCode(code: string): Promise<DateRoom | null> {
   return room;
 }
 
+export async function isRoomExpired(code: string): Promise<boolean> {
+  const cleanCode = code.trim().toLowerCase();
+  const supabase = getSupabaseServer();
+  if (supabase) {
+    try {
+      const { data } = await supabase
+        .from('date_rooms')
+        .select('expires_at')
+        .eq('room_code', cleanCode)
+        .single();
+      if (data) {
+        return new Date(data.expires_at).getTime() <= Date.now();
+      }
+    } catch {
+      // safe fallback
+    }
+  }
+  const room = global.__MOONLIT_ROOMS!.get(cleanCode);
+  if (room) {
+    return new Date(room.expires_at).getTime() <= Date.now();
+  }
+  return false;
+}
+
 export async function addRoomMember(roomId: string, user: {
   userId: string;
   displayName: string;
@@ -184,6 +209,34 @@ export async function addRoomMember(roomId: string, user: {
 
   return member;
 }
+
+export async function getRoomMembers(roomId: string): Promise<RoomMember[]> {
+  const supabase = getSupabaseServer();
+  if (supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('room_members')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('joined_at', { ascending: true });
+
+      if (!error && data) {
+        return data as RoomMember[];
+      }
+    } catch (e) {
+      console.warn('Supabase getRoomMembers error:', e);
+    }
+  }
+
+  return global.__MOONLIT_MEMBERS!.get(roomId) || [];
+}
+
+export async function isRoomMember(roomId: string, userId: string): Promise<boolean> {
+  if (!roomId || !userId) return false;
+  const members = await getRoomMembers(roomId);
+  return members.some((m) => m.user_id === userId);
+}
+
 
 export async function getRoomMessages(roomId: string): Promise<RoomMessage[]> {
   const supabase = getSupabaseServer();
