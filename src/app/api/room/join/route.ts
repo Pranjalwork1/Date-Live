@@ -29,16 +29,25 @@ export async function POST(req: NextRequest) {
 
     const isHost = cleanUserId === room.host_user_id;
 
-    const member = await addRoomMember(room.id, {
+    const joinResult = await addRoomMember(room.id, {
       userId: cleanUserId,
       displayName: cleanName,
       role: isHost ? 'host' : 'guest',
     });
 
+    if (joinResult.nameTaken) {
+      return NextResponse.json({
+        success: false,
+        nameTaken: true,
+        originalName: cleanName,
+        suggestions: joinResult.suggestions || [],
+      }, { status: 409 });
+    }
+
     return NextResponse.json({
       success: true,
       room,
-      member,
+      member: joinResult.member,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to join room';

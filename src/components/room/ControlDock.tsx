@@ -4,6 +4,8 @@ import React from 'react';
 import {
   Mic,
   MicOff,
+  Video,
+  VideoOff,
   ScreenShare,
   MessageSquare,
   Volume2,
@@ -18,6 +20,8 @@ import AppleReactionPicker from './AppleReactionPicker';
 interface ControlDockProps {
   isMuted: boolean;
   onToggleMic: () => void;
+  isCameraOn?: boolean;
+  onToggleCamera?: () => void;
   isSharing: boolean;
   onToggleScreenShare: () => void;
   onSelectReaction: (emoji: string) => void;
@@ -35,6 +39,8 @@ interface ControlDockProps {
 export default function ControlDock({
   isMuted,
   onToggleMic,
+  isCameraOn = false,
+  onToggleCamera,
   isSharing,
   onToggleScreenShare,
   onSelectReaction,
@@ -73,6 +79,22 @@ export default function ControlDock({
         >
           {isMuted ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
         </button>
+
+        {/* Camera Toggle */}
+        {onToggleCamera && (
+          <button
+            onClick={onToggleCamera}
+            className={`flex h-11 w-11 items-center justify-center rounded-full transition-all active:scale-95 shadow-md cursor-pointer ${
+              !isCameraOn
+                ? 'bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10 hover:text-white'
+                : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 shadow-[0_0_15px_-3px_rgba(52,211,153,0.35)]'
+            }`}
+            title={isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+            aria-label={isCameraOn ? 'Turn Off Camera' : 'Turn On Camera'}
+          >
+            {isCameraOn ? <Video className="h-5 w-5" /> : <VideoOff className="h-5 w-5" />}
+          </button>
+        )}
 
         {/* Visually Prominent Share Screen Button */}
         <button

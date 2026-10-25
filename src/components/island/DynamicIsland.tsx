@@ -305,7 +305,7 @@ export default function DynamicIsland({
                   <span>{formatTimer(elapsedSeconds)}</span>
                 </div>
 
-                {/* Overlapping Two-Person Avatar Stack */}
+                {/* Overlapping Avatar Stack */}
                 <div className="flex -space-x-1.5 items-center pl-0.5">
                   <div
                     className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gradient-to-tr from-rose-500 to-pink-500 border-2 border-black flex items-center justify-center text-[10px] text-white font-bold shadow-sm"
@@ -323,6 +323,14 @@ export default function DynamicIsland({
                   >
                     {participantCount >= 2 ? 'P' : '💌'}
                   </div>
+                  {participantCount > 2 && (
+                    <div
+                      className="h-5 w-5 sm:h-6 sm:w-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 border-2 border-black flex items-center justify-center text-[9px] text-white font-bold shadow-sm"
+                      title={`${participantCount} participants`}
+                    >
+                      +{participantCount - 2}
+                    </div>
+                  )}
                 </div>
 
                 {/* Expand Caret */}

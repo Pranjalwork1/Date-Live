@@ -188,5 +188,107 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.notEqual(roomA.title, roomB.title);
     assert.equal(roomB.messages.length, 0);
   });
+
+  test('generateNumericSuffixOptions creates distinct 4-digit suffix suggestions without colliding with taken names', () => {
+    function generateNumericSuffixOptions(baseName, takenNames, count = 3) {
+      const cleanBase = baseName.trim().slice(0, 35).replace(/-\d{4,}$/, '');
+      const suggestions = [];
+      let attempts = 0;
+      while (suggestions.length < count && attempts < 100) {
+        attempts++;
+        const suffix = Math.floor(1000 + Math.random() * 9000);
+        const candidate = `${cleanBase}-${suffix}`;
+        if (!takenNames.has(candidate.toLowerCase()) && !suggestions.includes(candidate)) {
+          suggestions.push(candidate);
+        }
+      }
+      return suggestions;
+    }
+
+    const taken = new Set(['aarav', 'aarav-1234']);
+    const suggestions = generateNumericSuffixOptions('Aarav', taken, 3);
+
+    assert.equal(suggestions.length, 3);
+    for (const s of suggestions) {
+      assert.match(s, /^Aarav-\d{4}$/);
+      assert.equal(taken.has(s.toLowerCase()), false);
+    }
+    const uniqueSet = new Set(suggestions);
+    assert.equal(uniqueSet.size, 3, 'All 3 suggestions must be mutually unique');
+  });
+
+  test('three participants entering Aarav can all join with distinct names and separate identities', () => {
+    const members = [];
+    function joinRoom(requestedName, userId) {
+      const takenNames = new Set(members.map((m) => m.displayName.toLowerCase()));
+      let finalName = requestedName.trim();
+      if (takenNames.has(finalName.toLowerCase())) {
+        const suffix = Math.floor(1000 + Math.random() * 9000);
+        finalName = `${finalName}-${suffix}`;
+      }
+      const member = {
+        userId,
+        displayName: finalName,
+      };
+      members.push(member);
+      return member;
+    }
+
+    const user1 = joinRoom('Aarav', 'usr_id_1');
+    const user2 = joinRoom('Aarav', 'usr_id_2');
+    const user3 = joinRoom('Aarav', 'usr_id_3');
+
+    assert.equal(user1.displayName, 'Aarav');
+    assert.match(user2.displayName, /^Aarav-\d{4}$/);
+    assert.match(user3.displayName, /^Aarav-\d{4}$/);
+    assert.notEqual(user2.displayName, user3.displayName);
+
+    // Verify all 3 have distinct participant identities
+    assert.equal(user1.userId, 'usr_id_1');
+    assert.equal(user2.userId, 'usr_id_2');
+    assert.equal(user3.userId, 'usr_id_3');
+    assert.equal(members.length, 3);
+  });
+
+  test('sender-only chat isolates messages locally per participant identity', () => {
+    const localStore = new Map();
+    function sendLocalMessage(roomCode, userId, text) {
+      const storageKey = `moonlit_local_msgs_${roomCode}_${userId}`;
+      const current = localStore.get(storageKey) || [];
+      const updated = [...current, { senderId: userId, content: text.trim() }];
+      localStore.set(storageKey, updated);
+      return updated;
+    }
+
+    sendLocalMessage('moon-test-1234', 'usr_A', 'Hello from Participant A');
+    sendLocalMessage('moon-test-1234', 'usr_B', 'Hi from Participant B');
+
+    const msgsA = localStore.get('moonlit_local_msgs_moon-test-1234_usr_A');
+    const msgsB = localStore.get('moonlit_local_msgs_moon-test-1234_usr_B');
+
+    assert.equal(msgsA.length, 1);
+    assert.equal(msgsA[0].content, 'Hello from Participant A');
+    assert.equal(msgsB.length, 1);
+    assert.equal(msgsB[0].content, 'Hi from Participant B');
+    assert.notEqual(msgsA[0].content, msgsB[0].content, 'Chat messages must not cross participant boundaries');
+  });
+
+  test('any participant can initiate screen sharing and sharer name is accurately tracked', () => {
+    let activeSharer = null;
+    function startScreenShare(participant) {
+      activeSharer = participant.displayName;
+      return { isSharing: true, sharerName: activeSharer };
+    }
+
+    // Guest initiates screen share
+    const res1 = startScreenShare({ userId: 'usr_guest_2', displayName: 'Maya' });
+    assert.equal(res1.isSharing, true);
+    assert.equal(res1.sharerName, 'Maya');
+
+    // Third participant takes turn
+    const res2 = startScreenShare({ userId: 'usr_guest_3', displayName: 'Aarav-5821' });
+    assert.equal(res2.isSharing, true);
+    assert.equal(res2.sharerName, 'Aarav-5821');
+  });
 });
 

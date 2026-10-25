@@ -184,16 +184,64 @@ export async function isRoomExpired(code: string): Promise<boolean> {
   return false;
 }
 
+export function generateNumericSuffixOptions(
+  baseName: string,
+  takenNames: Set<string>,
+  count = 3
+): string[] {
+  const cleanBase = baseName.trim().slice(0, 35).replace(/-\d{4,}$/, '');
+  const suggestions: string[] = [];
+  let attempts = 0;
+  while (suggestions.length < count && attempts < 100) {
+    attempts++;
+    const suffix = Math.floor(1000 + Math.random() * 9000);
+    const candidate = `${cleanBase}-${suffix}`;
+    if (!takenNames.has(candidate.toLowerCase()) && !suggestions.includes(candidate)) {
+      suggestions.push(candidate);
+    }
+  }
+  return suggestions;
+}
+
+export async function checkDisplayNameAvailability(
+  roomId: string,
+  requestedName: string,
+  userId: string
+): Promise<{ available: boolean; originalName: string; suggestions?: string[] }> {
+  const cleanName = requestedName.trim().slice(0, 50);
+  const members = await getRoomMembers(roomId);
+
+  // Other active members in the room (excluding this userId if reconnecting)
+  const otherMembers = members.filter((m) => m.user_id !== userId);
+  const takenNames = new Set(otherMembers.map((m) => m.display_name.trim().toLowerCase()));
+
+  if (!takenNames.has(cleanName.toLowerCase())) {
+    return { available: true, originalName: cleanName };
+  }
+
+  const suggestions = generateNumericSuffixOptions(cleanName, takenNames, 3);
+  return { available: false, originalName: cleanName, suggestions };
+}
+
 export async function addRoomMember(roomId: string, user: {
   userId: string;
   displayName: string;
   role: 'host' | 'guest';
-}): Promise<RoomMember> {
+}): Promise<{ member?: RoomMember; nameTaken?: boolean; suggestions?: string[] }> {
+  const cleanName = user.displayName.trim().slice(0, 50);
+  const check = await checkDisplayNameAvailability(roomId, cleanName, user.userId);
+  if (!check.available) {
+    return {
+      nameTaken: true,
+      suggestions: check.suggestions,
+    };
+  }
+
   const member: RoomMember = {
     id: `mem_${Math.random().toString(36).substring(2, 10)}`,
     room_id: roomId,
     user_id: user.userId,
-    display_name: user.displayName,
+    display_name: cleanName,
     role: user.role,
     joined_at: new Date().toISOString(),
   };
@@ -204,10 +252,10 @@ export async function addRoomMember(roomId: string, user: {
       await supabase.from('room_members').upsert({
         room_id: roomId,
         user_id: user.userId,
-        display_name: user.displayName,
+        display_name: cleanName,
         role: user.role,
-      });
-      return member;
+      }, { onConflict: 'room_id,user_id' });
+      return { member };
     } catch (e) {
       console.warn('Supabase member upsert error:', e);
     }
@@ -218,7 +266,7 @@ export async function addRoomMember(roomId: string, user: {
   filtered.push(member);
   global.__MOONLIT_MEMBERS!.set(roomId, filtered);
 
-  return member;
+  return { member };
 }
 
 export async function getRoomMembers(roomId: string): Promise<RoomMember[]> {
@@ -261,6 +309,14 @@ export async function removeRoomMember(roomId: string, userId: string): Promise<
     } catch (e) {
       console.warn('Supabase member remove error:', e);
     }
+  }
+
+  const existing = global.__MOONLIT_MEMBERS!.get(roomId);
+  if (existing) {
+    global.__MOONLIT_MEMBERS!.set(
+      roomId,
+      existing.filter((m) => m.user_id !== userId)
+    );
   }
 }
 
