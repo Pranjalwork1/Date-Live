@@ -240,11 +240,11 @@ export default function ScreenStage({
         </div>
       ) : (
         /* Cozy Waiting State (No screen shared yet) */
-        <div className="relative flex flex-col items-center justify-center p-8 text-center max-w-lg z-10 select-none">
+        <div className="relative flex flex-col items-center justify-center p-4 sm:p-8 text-center max-w-lg z-10 select-none">
           {/* Cinema Screen Illustration */}
-          <div className="relative mb-5">
+          <div className="relative mb-4 sm:mb-5">
             <div
-              className="w-40 h-28 sm:w-52 sm:h-36 rounded-3xl border-2 border-dashed flex flex-col items-center justify-center shadow-2xl backdrop-blur-md group transition-all duration-500"
+              className="w-32 h-24 sm:w-52 sm:h-36 rounded-2xl sm:rounded-3xl border-2 border-dashed flex flex-col items-center justify-center shadow-2xl backdrop-blur-md group transition-all duration-500"
               style={{
                 borderColor: currentTheme.cardBorder,
                 background: `radial-gradient(circle at 50% 50%, ${currentTheme.aura1} 0%, transparent 80%)`,
@@ -252,17 +252,17 @@ export default function ScreenStage({
               }}
             >
               <div
-                className="flex h-12 w-12 items-center justify-center rounded-2xl border mb-2 transition-all duration-500"
+                className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl border mb-1 sm:mb-2 transition-all duration-500"
                 style={{
                   borderColor: currentTheme.cardBorder,
                   background: `linear-gradient(135deg, ${currentTheme.aura1}, ${currentTheme.aura2})`,
                   color: currentTheme.accentTextColor,
                 }}
               >
-                <Film className="h-6 w-6 stroke-[1.5]" />
+                <Film className="h-5 w-5 sm:h-6 sm:w-6 stroke-[1.5]" />
               </div>
               <span
-                className="text-[11px] font-semibold tracking-wider uppercase"
+                className="text-[10px] sm:text-[11px] font-semibold tracking-wider uppercase"
                 style={{ color: currentTheme.accentTextColor }}
               >
                 Moonlit Cinema
@@ -271,31 +271,31 @@ export default function ScreenStage({
 
             {/* Floating Moon Badge */}
             <div
-              className="absolute -top-3 -right-3 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-lg animate-pulse transition-all duration-500"
+              className="absolute -top-2 -right-2 sm:-top-3 sm:-right-3 flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-white shadow-lg animate-pulse transition-all duration-500"
               style={{
                 background: `linear-gradient(135deg, ${currentTheme.accentFrom}, ${currentTheme.accentTo})`,
                 boxShadow: `0 4px 14px ${currentTheme.glowColor}`,
               }}
             >
-              <Moon className="h-4 w-4 fill-current" />
+              <Moon className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
             </div>
 
-            <div className="absolute -bottom-2 -left-2 text-2xl animate-bounce">🍿</div>
+            <div className="absolute -bottom-2 -left-2 text-xl sm:text-2xl animate-bounce">🍿</div>
           </div>
 
           {participantCount < 2 ? (
             <>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+              <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
                 Your movie night is waiting 🌙
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
+              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-5 sm:mb-6 font-light max-w-sm">
                 Invite your person to start watching together. You can share your screen, movie sound, and talk freely.
               </p>
-              <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 {onOpenInvite && (
                   <button
                     onClick={onOpenInvite}
-                    className="flex items-center gap-2 rounded-full px-6 py-2.5 text-xs font-semibold text-white shadow-lg active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-2 rounded-full w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white shadow-lg active:scale-95 transition-all cursor-pointer"
                     style={{
                       background: `linear-gradient(135deg, ${currentTheme.accentFrom}, ${currentTheme.accentTo})`,
                       boxShadow: `0 10px 25px -5px ${currentTheme.glowColor}`,
@@ -307,7 +307,7 @@ export default function ScreenStage({
                 {onStartScreenShare && (
                   <button
                     onClick={onStartScreenShare}
-                    className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 hover:bg-white/15 px-5 py-2.5 text-xs font-semibold text-white shadow transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center justify-center gap-2 rounded-full border border-white/15 bg-white/10 hover:bg-white/15 w-full sm:w-auto px-5 py-2.5 text-xs font-semibold text-white shadow transition-all active:scale-95 cursor-pointer"
                   >
                     <ScreenShare className="h-4 w-4" style={{ color: currentTheme.accentTextColor }} />
                     <span>Share Screen</span>
@@ -315,7 +315,7 @@ export default function ScreenStage({
                 )}
                 <button
                   onClick={onOpenAudioHelp}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 w-full sm:w-auto px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
                 >
                   <Radio className="h-3.5 w-3.5 text-rose-400" />
                   <span>Audio guide</span>
@@ -325,17 +325,17 @@ export default function ScreenStage({
             </>
           ) : (
             <>
-              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
+              <h2 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white mb-2">
                 Your movie night starts here
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-6 font-light">
+              <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-5 sm:mb-6 font-light max-w-sm">
                 Share your favorite movie or show with your person. For full sound, choose your browser tab and enable <strong className="text-rose-300 font-medium">&quot;Also share tab audio&quot;</strong>.
               </p>
-              <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 {onStartScreenShare && (
                   <button
                     onClick={onStartScreenShare}
-                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
+                    className="flex items-center justify-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-400 hover:to-pink-400 w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-rose-500/30 active:scale-95 transition-all cursor-pointer"
                   >
                     <ScreenShare className="h-4 w-4" />
                     <span>Share Screen Now</span>
@@ -344,14 +344,14 @@ export default function ScreenStage({
                 {onOpenInvite && (
                   <button
                     onClick={onOpenInvite}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 px-4 py-2.5 text-xs text-rose-300 font-medium transition-all cursor-pointer"
+                    className="inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 w-full sm:w-auto px-4 py-2.5 text-xs text-rose-300 font-medium transition-all cursor-pointer"
                   >
                     <span>Invite Link ❤️</span>
                   </button>
                 )}
                 <button
                   onClick={onOpenAudioHelp}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 w-full sm:w-auto px-4 py-2.5 text-xs text-rose-200/90 transition-all cursor-pointer"
                 >
                   <Radio className="h-3.5 w-3.5 text-rose-400" />
                   <span>Audio guide</span>

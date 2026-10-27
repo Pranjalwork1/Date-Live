@@ -53,7 +53,7 @@ export default function AppleReactionPicker({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="absolute bottom-full mb-3 -left-20 sm:-left-24 z-50 flex items-center gap-1 rounded-full border border-white/20 bg-black/80 px-3 py-2 shadow-2xl backdrop-blur-2xl"
+            className="absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1 rounded-full border border-white/20 bg-black/90 px-2 sm:px-3 py-1.5 sm:py-2 shadow-2xl backdrop-blur-2xl whitespace-nowrap"
             style={{
               boxShadow:
                 '0 15px 40px -10px rgba(0, 0, 0, 0.7), 0 0 25px -5px rgba(244, 63, 94, 0.4)',
@@ -70,7 +70,7 @@ export default function AppleReactionPicker({
                 onClick={() => handlePick(item.emoji)}
                 title={`${item.label} (${item.desc})`}
                 aria-label={`Send ${item.label} reaction`}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-xl transition-all hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-rose-400"
+                className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full text-lg sm:text-xl transition-all hover:bg-white/15 focus:outline-none focus:ring-2 focus:ring-rose-400 cursor-pointer"
               >
                 <span>{item.emoji}</span>
               </motion.button>
@@ -85,7 +85,7 @@ export default function AppleReactionPicker({
         whileTap={{ scale: 0.92 }}
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`group relative flex items-center gap-2 rounded-full border px-4 py-2.5 text-xs font-semibold text-white shadow-xl backdrop-blur-xl transition-all ${
+        className={`group relative flex items-center justify-center gap-2 rounded-full border h-10 w-10 sm:h-11 sm:w-auto sm:px-4 text-xs font-semibold text-white shadow-xl backdrop-blur-xl transition-all cursor-pointer ${
           isOpen
             ? 'border-rose-400 bg-rose-500/30 text-rose-200 ring-2 ring-rose-400/30'
             : 'border-white/15 bg-black/60 hover:border-rose-500/40 hover:bg-rose-500/20'
@@ -97,7 +97,7 @@ export default function AppleReactionPicker({
         aria-expanded={isOpen}
       >
         <div className="relative">
-          <Heart className="h-4 w-4 text-rose-400 fill-rose-500/40 group-hover:fill-rose-500 transition-colors" />
+          <Heart className="h-4 w-4 sm:h-4.5 sm:w-4.5 text-rose-400 fill-rose-500/40 group-hover:fill-rose-500 transition-colors" />
           <Sparkles className="absolute -top-1 -right-1.5 h-2.5 w-2.5 text-amber-300 animate-pulse" />
         </div>
         <span className="hidden sm:inline">React</span>

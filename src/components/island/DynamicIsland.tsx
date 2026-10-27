@@ -107,7 +107,7 @@ export default function DynamicIsland({
   const activeTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
 
   return (
-    <header className="fixed top-4 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+    <header className="fixed top-[max(0.75rem,env(safe-area-inset-top))] left-0 right-0 z-50 flex justify-center px-2 sm:px-4 pointer-events-none">
       <div
         ref={islandRef}
         className={`pointer-events-auto relative overflow-hidden backdrop-blur-2xl transition-[border-radius,box-shadow] duration-[250ms] ease-out ${
@@ -295,9 +295,17 @@ export default function DynamicIsland({
                       {roomTitle}
                     </span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-medium shrink-0">
-                      {participantCount >= 2
-                        ? `Together now · ${partnerNames || '2 joined'}`
-                        : 'Waiting for your person...'}
+                      {participantCount >= 2 ? (
+                        <>
+                          <span className="hidden sm:inline">Together now · {partnerNames || '2 joined'}</span>
+                          <span className="sm:hidden">Together ❤️</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="hidden sm:inline">Waiting for your person...</span>
+                          <span className="sm:hidden">Waiting 💌</span>
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>

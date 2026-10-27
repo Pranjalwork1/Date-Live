@@ -35,8 +35,8 @@ export default function LandingPage() {
       />
 
       {/* HERO SECTION — TWO COLUMN LAYOUT ON DESKTOP */}
-      <section className="relative z-10 pt-28 sm:pt-36 lg:pt-40 pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+      <section className="relative z-10 pt-24 sm:pt-36 lg:pt-40 pb-12 sm:pb-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
           {/* LEFT COLUMN: Eyebrow, Heading, Description, CTAs, Privacy Info */}
           <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left">
             {/* Eyebrow Label */}
@@ -44,7 +44,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
-              className="inline-flex items-center gap-2 rounded-full border border-[#FF6B9A]/30 bg-[#FF6B9A]/10 px-4 py-1.5 text-[11px] font-semibold tracking-wider text-[#FF6B9A] uppercase shadow-sm shadow-[#FF6B9A]/20 mb-6 backdrop-blur-md"
+              className="inline-flex items-center gap-2 rounded-full border border-[#FF6B9A]/30 bg-[#FF6B9A]/10 px-3.5 sm:px-4 py-1.5 text-[10px] sm:text-[11px] font-semibold tracking-wider text-[#FF6B9A] uppercase shadow-sm shadow-[#FF6B9A]/20 mb-5 sm:mb-6 backdrop-blur-md"
             >
               <Sparkles className="h-3 w-3 text-[#FF6B9A]" />
               <span>A little closer, even from afar</span>
@@ -55,7 +55,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
-              className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.12] mb-6"
+              className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.15] mb-4 sm:mb-6"
             >
               Your favorite movie.{' '}
               <span className="bg-gradient-to-r from-[#FF6B9A] via-[#FDA4AF] to-[#C084FC] bg-clip-text text-transparent">
@@ -69,7 +69,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-base sm:text-lg text-slate-300 font-light leading-relaxed mb-8 max-w-xl"
+              className="text-sm sm:text-lg text-slate-300 font-light leading-relaxed mb-6 sm:mb-8 max-w-xl"
             >
               Movie nights feel better together. Share your screen, hear every laugh, send a little love, and make the distance feel smaller.
             </motion.p>
@@ -79,11 +79,11 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto mb-6"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto mb-6"
             >
               <button
                 onClick={() => setIsCreateOpen(true)}
-                className="flex items-center justify-center gap-2.5 w-full sm:w-auto rounded-full bg-gradient-to-r from-[#FF6B9A] via-[#F43F5E] to-[#E11D48] px-8 py-3.5 text-sm sm:text-base font-semibold text-white shadow-xl shadow-[#FF6B9A]/30 hover:opacity-95 hover:shadow-[#FF6B9A]/40 active:scale-95 transition-all cursor-pointer"
+                className="flex items-center justify-center gap-2.5 w-full sm:w-auto rounded-full bg-gradient-to-r from-[#FF6B9A] via-[#F43F5E] to-[#E11D48] px-7 sm:px-8 py-3.5 text-sm sm:text-base font-semibold text-white shadow-xl shadow-[#FF6B9A]/30 hover:opacity-95 hover:shadow-[#FF6B9A]/40 active:scale-95 transition-all cursor-pointer"
               >
                 <Heart className="h-4 w-4 fill-current text-white animate-pulse" />
                 <span>Create a Date Room</span>
@@ -92,7 +92,7 @@ export default function LandingPage() {
 
               <button
                 onClick={() => setIsJoinOpen(true)}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-full border border-white/20 bg-white/5 hover:bg-white/10 px-7 py-3.5 text-sm sm:text-base font-medium text-slate-200 hover:text-white backdrop-blur-xl transition-all cursor-pointer"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto rounded-full border border-white/20 bg-white/5 hover:bg-white/10 px-6 sm:px-7 py-3.5 text-sm sm:text-base font-medium text-slate-200 hover:text-white backdrop-blur-xl transition-all cursor-pointer"
               >
                 <span>Join a Room</span>
               </button>
@@ -179,29 +179,29 @@ export default function LandingPage() {
                 </div>
 
                 {/* Bottom Bar: Two Participant Chips & Reaction Pill */}
-                <div className="w-full flex items-center justify-between z-10 pt-2 border-t border-white/5">
-                  <div className="flex items-center gap-2">
+                <div className="w-full flex items-center justify-between z-10 pt-2 border-t border-white/5 gap-1.5 sm:gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden">
                     {/* Participant Chip: You */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
-                      <div className="h-4.5 w-4.5 rounded-full bg-gradient-to-tr from-[#FF6B9A] to-[#FDA4AF] flex items-center justify-center text-[9px] font-bold text-white">
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+                      <div className="h-4 w-4 sm:h-4.5 sm:w-4.5 rounded-full bg-gradient-to-tr from-[#FF6B9A] to-[#FDA4AF] flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white">
                         Y
                       </div>
-                      <span className="text-[11px] text-white font-medium">You</span>
-                      <Mic className="h-3 w-3 text-emerald-400" />
+                      <span className="text-[10px] sm:text-[11px] text-white font-medium">You</span>
+                      <Mic className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400" />
                     </div>
 
                     {/* Participant Chip: Your Person */}
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
-                      <div className="h-4.5 w-4.5 rounded-full bg-gradient-to-tr from-[#C084FC] to-[#818CF8] flex items-center justify-center text-[9px] font-bold text-white">
+                    <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+                      <div className="h-4 w-4 sm:h-4.5 sm:w-4.5 rounded-full bg-gradient-to-tr from-[#C084FC] to-[#818CF8] flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white">
                         P
                       </div>
-                      <span className="text-[11px] text-white font-medium">Your person</span>
-                      <Mic className="h-3 w-3 text-emerald-400" />
+                      <span className="text-[10px] sm:text-[11px] text-white font-medium truncate max-w-[65px] sm:max-w-none">Partner</span>
+                      <Mic className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400" />
                     </div>
                   </div>
 
                   {/* Reaction Pill Preview */}
-                  <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 border border-white/15 backdrop-blur-xl text-xs">
+                  <div className="flex items-center gap-0.5 sm:gap-1 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/75 border border-white/15 backdrop-blur-xl text-[10px] sm:text-xs shrink-0">
                     <span>❤️</span>
                     <span>🍿</span>
                     <span>😍</span>

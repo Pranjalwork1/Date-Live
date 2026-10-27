@@ -1637,7 +1637,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
       {/* MAIN THEATER CONTAINER */}
       <main
-        className={`relative flex-1 flex flex-col px-2.5 sm:px-4 lg:px-5 pt-16 sm:pt-18 lg:pt-20 pb-20 sm:pb-24 max-w-[1600px] mx-auto w-full z-10 transition-all duration-300 ${
+        className={`relative flex-1 flex flex-col px-2.5 sm:px-4 lg:px-5 pt-[max(4.25rem,calc(env(safe-area-inset-top)+3.5rem))] pb-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))] sm:pb-24 max-w-[1600px] mx-auto w-full z-10 transition-all duration-300 ${
           isChatOpen ? 'lg:mr-80 xl:mr-96' : ''
         }`}
       >

@@ -153,7 +153,7 @@ export default function JoinRoomModal({
           initial={{ opacity: 0, scale: 0.94, y: 15 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.94, y: 15 }}
-          className="relative w-full max-w-md overflow-hidden rounded-3xl border border-white/10 bg-[#0d0f1f]/95 p-6 shadow-2xl text-white backdrop-blur-2xl"
+          className="relative w-full max-w-md max-h-[92vh] overflow-y-auto rounded-3xl border border-white/10 bg-[#0d0f1f]/95 p-5 sm:p-6 shadow-2xl text-white backdrop-blur-2xl"
           style={{
             boxShadow: '0 25px 60px -15px rgba(0,0,0,0.8), 0 0 40px -10px rgba(168,85,247,0.25)',
           }}

@@ -158,11 +158,11 @@ export default function ParticipantPanel({
                             e.stopPropagation();
                             onFlipCamera();
                           }}
-                          className="pointer-events-auto flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-black/70 hover:bg-black/90 active:scale-90 text-white/95 hover:text-white border border-white/25 hover:border-white/50 backdrop-blur-md shadow-md transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-rose-400/40"
+                          className="pointer-events-auto touch-manipulation flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-black/75 hover:bg-black/90 active:scale-90 text-white border border-white/30 hover:border-white/60 backdrop-blur-md shadow-lg transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-rose-400/50"
                           title={`Switch to ${cameraFacingMode === 'user' ? 'back' : 'selfie'} camera`}
                           aria-label="Switch between selfie and back camera"
                         >
-                          <SwitchCamera className="h-3.5 w-3.5 text-white" />
+                          <SwitchCamera className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                         </button>
                       )}
 
