@@ -97,7 +97,9 @@ export default function DynamicIsland({
   const copyInviteLink = () => {
     if (!roomCode || typeof window === 'undefined') return;
     const url = `${window.location.origin}/${roomCode}`;
-    navigator.clipboard.writeText(url);
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(url).catch(() => {});
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };

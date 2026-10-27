@@ -290,5 +290,72 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.equal(res2.isSharing, true);
     assert.equal(res2.sharerName, 'Aarav-5821');
   });
+
+  test('microphone initializes in muted state and properly unmutes on user toggle', async () => {
+    // Simulate RoomClient mic state machine
+    let isMuted = true;
+    let participants = [{ userId: 'usr_1', isMuted: true }];
+
+    async function toggleMic(simulateError = false) {
+      const nextMuted = !isMuted;
+      try {
+        if (simulateError) {
+          throw new Error('Permission denied');
+        }
+        isMuted = nextMuted;
+        participants = participants.map((p) =>
+          p.userId === 'usr_1' ? { ...p, isMuted: nextMuted } : p
+        );
+      } catch {
+        isMuted = true;
+        participants = participants.map((p) =>
+          p.userId === 'usr_1' ? { ...p, isMuted: true } : p
+        );
+      }
+    }
+
+    // Initial state: starts muted
+    assert.equal(isMuted, true);
+    assert.equal(participants[0].isMuted, true);
+
+    // First click: un-mutes cleanly
+    await toggleMic(false);
+    assert.equal(isMuted, false);
+    assert.equal(participants[0].isMuted, false);
+
+    // Second click: mutes cleanly
+    await toggleMic(false);
+    assert.equal(isMuted, true);
+    assert.equal(participants[0].isMuted, true);
+
+    // Third click with permission error: stays muted for both state and participant
+    await toggleMic(true);
+    assert.equal(isMuted, true);
+    assert.equal(participants[0].isMuted, true);
+  });
+
+  test('quick reaction buttons in chat do not wipe user draft input', () => {
+    let inputText = 'I love this scene!';
+    let sentMessage = null;
+
+    function handleSend(contentToSend) {
+      const text = (contentToSend ?? inputText).trim();
+      if (!contentToSend) {
+        inputText = '';
+      }
+      sentMessage = text;
+    }
+
+    // User clicks "Send Love" quick button while drafting
+    handleSend('❤️');
+    assert.equal(sentMessage, '❤️');
+    assert.equal(inputText, 'I love this scene!', 'Active draft message must be preserved when sending quick reaction');
+
+    // Normal message send clears the input
+    handleSend();
+    assert.equal(sentMessage, 'I love this scene!');
+    assert.equal(inputText, '', 'Normal send should clear the input');
+  });
 });
+
 

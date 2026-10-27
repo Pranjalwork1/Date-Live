@@ -131,7 +131,8 @@ class AmbienceManager {
         const snapGain = this.ctx.createGain();
         snap.type = 'square';
         snap.frequency.value = 800 + Math.random() * 1200;
-        snapGain.gain.setValueAtTime(0.04 * Math.random(), this.ctx.currentTime);
+        const initialGain = Math.max(0.0001, 0.04 * Math.random());
+        snapGain.gain.setValueAtTime(initialGain, this.ctx.currentTime);
         snapGain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 0.04);
         snap.connect(snapGain);
         snapGain.connect(destination);
@@ -146,6 +147,7 @@ class AmbienceManager {
       clearInterval(interval);
       osc.stop();
       osc.disconnect();
+      lowpass.disconnect();
       rumbleGain.disconnect();
     };
   }

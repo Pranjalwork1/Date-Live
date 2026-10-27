@@ -93,7 +93,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [isLocalSharing, setIsLocalSharing] = useState(false);
   const [sharerName, setSharerName] = useState<string>('');
   const [hasTabAudio, setHasTabAudio] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(false);
 
   // LiveKit Instance & Track Refs
@@ -242,7 +242,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 userId: payload.userId,
                 displayName: payload.displayName,
                 isHost: payload.role === 'host',
-                isMuted: false,
+                isMuted: true,
                 isSpeaking: false,
                 isSharingScreen: false,
                 isCameraOn: false,
@@ -318,6 +318,24 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           setIsScreenSharing(false);
           setSharerName('');
           setHasTabAudio(false);
+        }
+      } else if (type === 'MIC_MUTED_CHANGED') {
+        const { userId, isMuted: targetMuted } = payload || {};
+        if (userId && userId !== currentUserId) {
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === userId ? { ...p, isMuted: Boolean(targetMuted) } : p
+            )
+          );
+        }
+      } else if (type === 'CAMERA_STATE_CHANGED') {
+        const { userId, isCameraOn: targetCam } = payload || {};
+        if (userId && userId !== currentUserId) {
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === userId ? { ...p, isCameraOn: Boolean(targetCam) } : p
+            )
+          );
         }
       }
     };
@@ -417,11 +435,19 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             );
           } else if (publication.source === Track.Source.Microphone) {
             track.detach();
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === participant.identity ? { ...p, isMuted: true } : p
+              )
+            );
           }
         });
 
         lkRoom.on(RoomEvent.TrackMuted, (publication, participant) => {
-          if (publication.kind === Track.Kind.Audio) {
+          if (
+            publication.source === Track.Source.Microphone ||
+            (publication.kind === Track.Kind.Audio && publication.source !== Track.Source.ScreenShareAudio)
+          ) {
             setParticipants((prev) =>
               prev.map((p) =>
                 p.userId === participant.identity ? { ...p, isMuted: true } : p
@@ -431,7 +457,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         });
 
         lkRoom.on(RoomEvent.TrackUnmuted, (publication, participant) => {
-          if (publication.kind === Track.Kind.Audio) {
+          if (
+            publication.source === Track.Source.Microphone ||
+            (publication.kind === Track.Kind.Audio && publication.source !== Track.Source.ScreenShareAudio)
+          ) {
             setParticipants((prev) =>
               prev.map((p) =>
                 p.userId === participant.identity ? { ...p, isMuted: false } : p
@@ -519,6 +548,24 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                   }
                   return currSharer;
                 });
+              }
+            } else if (data.type === 'MIC_MUTED_CHANGED') {
+              const { userId, isMuted: targetMuted } = data.payload || {};
+              if (userId && userId !== currentUserId) {
+                setParticipants((prev) =>
+                  prev.map((p) =>
+                    p.userId === userId ? { ...p, isMuted: Boolean(targetMuted) } : p
+                  )
+                );
+              }
+            } else if (data.type === 'CAMERA_STATE_CHANGED') {
+              const { userId, isCameraOn: targetCam } = data.payload || {};
+              if (userId && userId !== currentUserId) {
+                setParticipants((prev) =>
+                  prev.map((p) =>
+                    p.userId === userId ? { ...p, isCameraOn: Boolean(targetCam) } : p
+                  )
+                );
               }
             }
           } catch (e) {
@@ -973,6 +1020,19 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           }
         }
         setIsCameraOn(true);
+        const camPayloadOn = {
+          type: 'CAMERA_STATE_CHANGED',
+          payload: { userId: currentUserId, isCameraOn: true },
+        };
+        if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
+          try {
+            const payloadBytes = new TextEncoder().encode(JSON.stringify(camPayloadOn));
+            void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+          } catch {
+            // safe
+          }
+        }
+        broadcastChannelRef.current?.postMessage(camPayloadOn);
       } else {
         if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
           await lkRoomRef.current.localParticipant.setCameraEnabled(false);
@@ -987,6 +1047,19 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           )
         );
         setIsCameraOn(false);
+        const camPayloadOff = {
+          type: 'CAMERA_STATE_CHANGED',
+          payload: { userId: currentUserId, isCameraOn: false },
+        };
+        if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
+          try {
+            const payloadBytes = new TextEncoder().encode(JSON.stringify(camPayloadOff));
+            void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+          } catch {
+            // safe
+          }
+        }
+        broadcastChannelRef.current?.postMessage(camPayloadOff);
       }
     } catch (e) {
       console.warn('Camera toggle error:', e);
@@ -998,14 +1071,17 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   // Microphone toggle (Live Real-Time Voice Calling)
   const handleToggleMic = async () => {
     const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
 
     try {
       if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
         await lkRoomRef.current.localParticipant.setMicrophoneEnabled(!nextMuted);
+        const micPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Microphone);
+        if (micPub?.audioTrack?.mediaStreamTrack) {
+          localMicTrackRef.current = micPub.audioTrack.mediaStreamTrack;
+        }
       } else {
         if (!nextMuted) {
-          if (!localMicTrackRef.current) {
+          if (!localMicTrackRef.current || localMicTrackRef.current.readyState === 'ended') {
             const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             localMicTrackRef.current = micStream.getAudioTracks()[0];
           } else {
@@ -1017,15 +1093,36 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           }
         }
       }
+
+      setIsMuted(nextMuted);
+      setParticipants((prev) =>
+        prev.map((p) => (p.userId === currentUserId ? { ...p, isMuted: nextMuted } : p))
+      );
+
+      // Broadcast mic state to room peers
+      const micPayload = {
+        type: 'MIC_MUTED_CHANGED',
+        payload: { userId: currentUserId, isMuted: nextMuted },
+      };
+
+      if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
+        try {
+          const payloadBytes = new TextEncoder().encode(JSON.stringify(micPayload));
+          void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+        } catch {
+          // safe
+        }
+      }
+
+      broadcastChannelRef.current?.postMessage(micPayload);
     } catch (e) {
       console.warn('Microphone error:', e);
       setIsMuted(true);
+      setParticipants((prev) =>
+        prev.map((p) => (p.userId === currentUserId ? { ...p, isMuted: true } : p))
+      );
       showToast('Microphone unavailable or permission denied.');
     }
-
-    setParticipants((prev) =>
-      prev.map((p) => (p.userId === currentUserId ? { ...p, isMuted: nextMuted } : p))
-    );
   };
 
   const handleSelectReaction = (emoji: string) => {

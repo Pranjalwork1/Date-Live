@@ -38,7 +38,9 @@ export default function ChatPanel({
     const text = (contentToSend ?? inputText).trim();
     if (!text || isSending) return;
 
-    setInputText('');
+    if (!contentToSend) {
+      setInputText('');
+    }
     setIsSending(true);
     setSendError(null);
 
