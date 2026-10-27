@@ -33,6 +33,7 @@ export default function JoinRoomModal({
     suggestions: string[];
     cleanCode: string;
   } | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
 
   const cleanExtractedCode = (input: string) => {
@@ -184,12 +185,10 @@ export default function JoinRoomModal({
 
               <div>
                 <h3 className="text-xl font-bold tracking-tight text-white mb-1">
-                  Name already in use
+                  This name is already taken in this room.
                 </h3>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Another participant in this room is already named{' '}
-                  <strong className="text-purple-300 font-semibold">{nameConflict.originalName}</strong>.
-                  Choose an available option below to step right in:
+                  Choose an available display name to continue.
                 </p>
               </div>
 
@@ -199,38 +198,106 @@ export default function JoinRoomModal({
                 </div>
               )}
 
-              {/* Attractive list of generated options */}
+              {/* Exactly three selectable suggestion options */}
               <div className="flex flex-col gap-2 pt-1">
-                {nameConflict.suggestions.map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => {
-                      setDisplayName(suggestion);
-                      void executeJoinWithName(nameConflict.cleanCode, suggestion);
-                    }}
-                    className="flex items-center justify-between w-full px-4 py-3 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 hover:from-purple-500/25 hover:to-indigo-500/25 hover:border-purple-400/60 text-white font-medium transition-all shadow-md active:scale-[0.98] group cursor-pointer"
-                  >
-                    <span className="font-semibold text-sm text-purple-200 group-hover:text-white transition-colors">
-                      {suggestion}
-                    </span>
-                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-purple-500/25 text-purple-200 border border-purple-500/40 group-hover:bg-purple-500 group-hover:text-white transition-all">
-                      {isLoading ? 'Joining...' : 'Select & Join'}
-                    </span>
-                  </button>
-                ))}
+                {nameConflict.suggestions.slice(0, 3).map((suggestion) => {
+                  const isSelected = selectedSuggestion === suggestion;
+                  return (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      disabled={isLoading}
+                      onClick={() => {
+                        setSelectedSuggestion(suggestion);
+                        setError(null);
+                      }}
+                      className={`flex items-center justify-between w-full px-4 py-3 rounded-2xl border transition-all shadow-md active:scale-[0.98] cursor-pointer ${
+                        isSelected
+                          ? 'border-purple-400 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 ring-2 ring-purple-400/50 shadow-[0_0_20px_-3px_rgba(168,85,247,0.35)]'
+                          : 'border-white/10 bg-white/5 hover:border-purple-500/40 hover:bg-white/10 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div
+                          className={`flex h-4 w-4 items-center justify-center rounded-full border transition-all ${
+                            isSelected
+                              ? 'border-purple-400 bg-purple-500 text-white'
+                              : 'border-white/30 bg-transparent'
+                          }`}
+                        >
+                          {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                        </div>
+                        <span
+                          className={`font-semibold text-sm transition-colors ${
+                            isSelected ? 'text-white' : 'text-slate-200'
+                          }`}
+                        >
+                          {suggestion}
+                        </span>
+                      </div>
+                      <span
+                        className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full transition-all ${
+                          isSelected
+                            ? 'bg-purple-500 text-white shadow-sm'
+                            : 'bg-white/10 text-slate-400'
+                        }`}
+                      >
+                        {isSelected ? 'Selected' : 'Available'}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              {/* Generate more options button */}
+              {/* Generate More option */}
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  disabled={isGeneratingMore || isLoading}
+                  onClick={handleGenerateMoreOptions}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:text-white hover:border-purple-400/50 hover:bg-white/5 transition-all cursor-pointer"
+                >
+                  <RefreshCw
+                    className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`}
+                  />
+                  <span>{isGeneratingMore ? 'Generating...' : 'Generate More'}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => {
+                    setNameConflict(null);
+                    setSelectedSuggestion(null);
+                  }}
+                  className="py-2.5 px-3 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+                >
+                  Change Name
+                </button>
+              </div>
+
+              {/* Join Room confirmation CTA button */}
               <button
                 type="button"
-                disabled={isGeneratingMore || isLoading}
-                onClick={handleGenerateMoreOptions}
-                className="mt-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:text-white hover:border-purple-400/50 hover:bg-white/5 transition-all cursor-pointer"
+                disabled={!selectedSuggestion || isLoading}
+                onClick={() => {
+                  if (selectedSuggestion) {
+                    setDisplayName(selectedSuggestion);
+                    void executeJoinWithName(nameConflict.cleanCode, selectedSuggestion);
+                  }
+                }}
+                className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-500 to-indigo-600 py-3 text-sm font-semibold text-white shadow-lg shadow-purple-500/25 hover:from-purple-400 hover:to-indigo-500 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
               >
-                <RefreshCw className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`} />
-                <span>{isGeneratingMore ? 'Finding new options...' : 'Generate more options'}</span>
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Joining Room...</span>
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="h-4 w-4" />
+                    <span>Join Room</span>
+                  </>
+                )}
               </button>
             </div>
           ) : (

@@ -29,11 +29,15 @@ export async function POST(req: NextRequest) {
 
     const isHost = cleanUserId === room.host_user_id;
 
-    const joinResult = await addRoomMember(room.id, {
-      userId: cleanUserId,
-      displayName: cleanName,
-      role: isHost ? 'host' : 'guest',
-    });
+    const joinResult = await addRoomMember(
+      room.id,
+      {
+        userId: cleanUserId,
+        displayName: cleanName,
+        role: isHost ? 'host' : 'guest',
+      },
+      { hostUserId: room.host_user_id, hostName: room.host_name }
+    );
 
     if (joinResult.nameTaken) {
       return NextResponse.json({

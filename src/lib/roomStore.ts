@@ -187,9 +187,9 @@ export async function isRoomExpired(code: string): Promise<boolean> {
 export function generateNumericSuffixOptions(
   baseName: string,
   takenNames: Set<string>,
-  count = 4
+  count = 3
 ): string[] {
-  // Clean base name: strip any existing numeric postfix e.g. "Aarav-1234", "Aarav 2", "Aarav #2"
+  // Clean base name: strip any existing numeric postfix e.g. "Pranjal-4821", "Pranjal 2", "Pranjal #2"
   const cleanBase = baseName.trim().slice(0, 35).replace(/[-_#\s]*\d+$/, '').trim() || 'Guest';
   const suggestions: string[] = [];
 
@@ -205,39 +205,20 @@ export function generateNumericSuffixOptions(
     return false;
   };
 
-  // 1. Next sequential number with space: e.g. "Alex 2", "Alex 3"
-  let seq = 2;
-  while (seq <= 20) {
-    if (tryAdd(`${cleanBase} ${seq}`)) break;
-    seq++;
-  }
-
-  // 2. Next sequential number with dash: e.g. "Alex-2", "Alex-3"
-  let dashSeq = 2;
-  while (dashSeq <= 20) {
-    if (tryAdd(`${cleanBase}-${dashSeq}`)) break;
-    dashSeq++;
-  }
-
-  // 3. Numbered tag: e.g. "Alex #2", "Alex #3"
-  let tagSeq = 2;
-  while (tagSeq <= 20) {
-    if (tryAdd(`${cleanBase} #${tagSeq}`)) break;
-    tagSeq++;
-  }
-
-  // 4. Random 4-digit ID suffix: e.g. "Alex-4821"
+  // Generate random numeric suffixes e.g. "Pranjal-4821", "Pranjal-7356", "Pranjal-1904"
   let attempts = 0;
-  while (suggestions.length < count && attempts < 100) {
+  while (suggestions.length < count && attempts < 300) {
     attempts++;
     const suffix = Math.floor(1000 + Math.random() * 9000);
     tryAdd(`${cleanBase}-${suffix}`);
   }
 
-  // 5. Fill remaining with subsequent sequential numbers if needed
-  while (suggestions.length < count && seq <= 30) {
-    tryAdd(`${cleanBase} ${seq}`);
-    seq++;
+  // Fallback if 4-digit space is heavily used: try 5-digit random numeric suffixes
+  let fallbackAttempts = 0;
+  while (suggestions.length < count && fallbackAttempts < 100) {
+    fallbackAttempts++;
+    const suffix = Math.floor(10000 + Math.random() * 90000);
+    tryAdd(`${cleanBase}-${suffix}`);
   }
 
   return suggestions;
@@ -246,7 +227,8 @@ export function generateNumericSuffixOptions(
 export async function checkDisplayNameAvailability(
   roomId: string,
   requestedName: string,
-  userId: string
+  userId: string,
+  hostInfo?: { hostUserId?: string; hostName?: string }
 ): Promise<{ available: boolean; originalName: string; suggestions?: string[] }> {
   const cleanName = requestedName.trim().slice(0, 50);
   const members = await getRoomMembers(roomId);
@@ -255,21 +237,30 @@ export async function checkDisplayNameAvailability(
   const otherMembers = members.filter((m) => m.user_id !== userId);
   const takenNames = new Set(otherMembers.map((m) => m.display_name.trim().toLowerCase()));
 
+  // Ensure host display name is checked if host hasn't joined room_members yet
+  if (hostInfo?.hostName && hostInfo?.hostUserId && hostInfo.hostUserId !== userId) {
+    takenNames.add(hostInfo.hostName.trim().toLowerCase());
+  }
+
   if (!takenNames.has(cleanName.toLowerCase())) {
     return { available: true, originalName: cleanName };
   }
 
-  const suggestions = generateNumericSuffixOptions(cleanName, takenNames, 4);
+  const suggestions = generateNumericSuffixOptions(cleanName, takenNames, 3);
   return { available: false, originalName: cleanName, suggestions };
 }
 
-export async function addRoomMember(roomId: string, user: {
-  userId: string;
-  displayName: string;
-  role: 'host' | 'guest';
-}): Promise<{ member?: RoomMember; nameTaken?: boolean; suggestions?: string[] }> {
+export async function addRoomMember(
+  roomId: string,
+  user: {
+    userId: string;
+    displayName: string;
+    role: 'host' | 'guest';
+  },
+  hostInfo?: { hostUserId?: string; hostName?: string }
+): Promise<{ member?: RoomMember; nameTaken?: boolean; suggestions?: string[] }> {
   const cleanName = user.displayName.trim().slice(0, 50);
-  const check = await checkDisplayNameAvailability(roomId, cleanName, user.userId);
+  const check = await checkDisplayNameAvailability(roomId, cleanName, user.userId, hostInfo);
   if (!check.available) {
     return {
       nameTaken: true,
@@ -289,12 +280,42 @@ export async function addRoomMember(roomId: string, user: {
   const supabase = getSupabaseServer();
   if (supabase) {
     try {
-      await supabase.from('room_members').upsert({
-        room_id: roomId,
-        user_id: user.userId,
-        display_name: cleanName,
-        role: user.role,
-      }, { onConflict: 'room_id,user_id' });
+      // Re-verify immediately before write to prevent simultaneous collision
+      const { data: currentMembers } = await supabase
+        .from('room_members')
+        .select('user_id, display_name')
+        .eq('room_id', roomId);
+
+      const isConflict = currentMembers?.some(
+        (m) =>
+          m.user_id !== user.userId &&
+          m.display_name.trim().toLowerCase() === cleanName.toLowerCase()
+      );
+
+      if (isConflict) {
+        const taken = new Set(
+          (currentMembers || [])
+            .filter((m) => m.user_id !== user.userId)
+            .map((m) => m.display_name.trim().toLowerCase())
+        );
+        if (hostInfo?.hostName && hostInfo?.hostUserId && hostInfo.hostUserId !== user.userId) {
+          taken.add(hostInfo.hostName.trim().toLowerCase());
+        }
+        return {
+          nameTaken: true,
+          suggestions: generateNumericSuffixOptions(cleanName, taken, 3),
+        };
+      }
+
+      await supabase.from('room_members').upsert(
+        {
+          room_id: roomId,
+          user_id: user.userId,
+          display_name: cleanName,
+          role: user.role,
+        },
+        { onConflict: 'room_id,user_id' }
+      );
       return { member };
     } catch (e) {
       console.warn('Supabase member upsert error:', e);
@@ -302,6 +323,26 @@ export async function addRoomMember(roomId: string, user: {
   }
 
   const existing = global.__MOONLIT_MEMBERS!.get(roomId) || [];
+  const inMemConflict = existing.some(
+    (m) =>
+      m.user_id !== user.userId &&
+      m.display_name.trim().toLowerCase() === cleanName.toLowerCase()
+  );
+  if (inMemConflict) {
+    const taken = new Set(
+      existing
+        .filter((m) => m.user_id !== user.userId)
+        .map((m) => m.display_name.trim().toLowerCase())
+    );
+    if (hostInfo?.hostName && hostInfo?.hostUserId && hostInfo.hostUserId !== user.userId) {
+      taken.add(hostInfo.hostName.trim().toLowerCase());
+    }
+    return {
+      nameTaken: true,
+      suggestions: generateNumericSuffixOptions(cleanName, taken, 3),
+    };
+  }
+
   const filtered = existing.filter((m) => m.user_id !== user.userId);
   filtered.push(member);
   global.__MOONLIT_MEMBERS!.set(roomId, filtered);

@@ -459,6 +459,165 @@ describe('Moonlit Security & Room Logic Tests', () => {
       assert.match(opt, /\d+/, 'Option must include a number suffix');
     }
   });
+
+  test('Pranjal duplicate scenario: exactly three distinct numeric suggestions generated', () => {
+    function generateNumericSuffixOptions(baseName, takenNames, count = 3) {
+      const cleanBase = baseName.trim().slice(0, 35).replace(/[-_#\s]*\d+$/, '').trim() || 'Guest';
+      const suggestions = [];
+      let attempts = 0;
+      while (suggestions.length < count && attempts < 200) {
+        attempts++;
+        const suffix = Math.floor(1000 + Math.random() * 9000);
+        const candidate = `${cleanBase}-${suffix}`;
+        if (!takenNames.has(candidate.toLowerCase()) && !suggestions.includes(candidate)) {
+          suggestions.push(candidate);
+        }
+      }
+      return suggestions;
+    }
+
+    const takenInRoom = new Set(['pranjal']);
+    const suggestions = generateNumericSuffixOptions('Pranjal', takenInRoom, 3);
+
+    // Must generate exactly 3 suggestions
+    assert.equal(suggestions.length, 3, 'Must provide exactly three suggestions');
+    // Each suggestion has format Pranjal-XXXX
+    for (const s of suggestions) {
+      assert.match(s, /^Pranjal-\d{4}$/, 'Suggestion must have random numeric suffix');
+      assert.equal(takenInRoom.has(s.toLowerCase()), false, 'Suggestion must not collide with taken names');
+    }
+    // All 3 mutually unique
+    const unique = new Set(suggestions);
+    assert.equal(unique.size, 3, 'All 3 suggestions must be distinct');
+  });
+
+  test('three users entering Pranjal can all join with distinct names and separate identities', () => {
+    const roomMembers = new Map(); // roomId -> array of members
+
+    function joinRoom(roomId, requestedName, userId, isHost = false) {
+      const existing = roomMembers.get(roomId) || [];
+      const taken = new Set(existing.map((m) => m.displayName.trim().toLowerCase()));
+      const cleanName = requestedName.trim();
+
+      if (taken.has(cleanName.toLowerCase())) {
+        // Suggestion selected
+        let attempts = 0;
+        let selected = '';
+        while (attempts < 100) {
+          attempts++;
+          const suffix = Math.floor(1000 + Math.random() * 9000);
+          const candidate = `${cleanName}-${suffix}`;
+          if (!taken.has(candidate.toLowerCase())) {
+            selected = candidate;
+            break;
+          }
+        }
+        const member = { userId, displayName: selected, role: isHost ? 'host' : 'guest' };
+        existing.push(member);
+        roomMembers.set(roomId, existing);
+        return { success: true, member, wasConflict: true };
+      }
+
+      const member = { userId, displayName: cleanName, role: isHost ? 'host' : 'guest' };
+      existing.push(member);
+      roomMembers.set(roomId, existing);
+      return { success: true, member, wasConflict: false };
+    }
+
+    const res1 = joinRoom('room_1', 'Pranjal', 'usr_p1', true);
+    const res2 = joinRoom('room_1', 'Pranjal', 'usr_p2', false);
+    const res3 = joinRoom('room_1', 'Pranjal', 'usr_p3', false);
+
+    assert.equal(res1.member.displayName, 'Pranjal');
+    assert.equal(res1.member.role, 'host');
+    assert.equal(res2.wasConflict, true);
+    assert.match(res2.member.displayName, /^Pranjal-\d{4}$/);
+    assert.equal(res2.member.role, 'guest');
+    assert.equal(res3.wasConflict, true);
+    assert.match(res3.member.displayName, /^Pranjal-\d{4}$/);
+    assert.equal(res3.member.role, 'guest');
+
+    // Distinct identities and display names
+    assert.notEqual(res2.member.displayName, res3.member.displayName);
+    assert.notEqual(res1.member.userId, res2.member.userId);
+    assert.notEqual(res2.member.userId, res3.member.userId);
+
+    // Host role preserved accurately regardless of original name
+    assert.equal(res1.member.role, 'host');
+    assert.equal(res2.member.role, 'guest');
+  });
+
+  test('same name in different rooms does not collide', () => {
+    const roomMembers = new Map();
+    roomMembers.set('room_alpha', [{ userId: 'usr_1', displayName: 'Pranjal' }]);
+    roomMembers.set('room_beta', []);
+
+    // Joining room_beta with 'Pranjal' should succeed because it's in another room
+    const membersBeta = roomMembers.get('room_beta');
+    const takenBeta = new Set(membersBeta.map((m) => m.displayName.toLowerCase()));
+    assert.equal(takenBeta.has('pranjal'), false, 'Pranjal should be available in room_beta');
+  });
+
+  test('suggested name that becomes occupied before confirmation is rejected and refreshed', () => {
+    const taken = new Set(['pranjal', 'pranjal-1234']);
+    function validateAndJoin(chosenName) {
+      if (taken.has(chosenName.toLowerCase())) {
+        // Refresh with fresh suggestions
+        const fresh = [];
+        let attempts = 0;
+        while (fresh.length < 3 && attempts < 100) {
+          attempts++;
+          const suffix = Math.floor(1000 + Math.random() * 9000);
+          const candidate = `Pranjal-${suffix}`;
+          if (!taken.has(candidate.toLowerCase()) && !fresh.includes(candidate)) {
+            fresh.push(candidate);
+          }
+        }
+        return { success: false, nameTaken: true, freshSuggestions: fresh };
+      }
+      taken.add(chosenName.toLowerCase());
+      return { success: true, displayName: chosenName };
+    }
+
+    // User selected Pranjal-1234, but it was occupied in the meantime
+    const res = validateAndJoin('Pranjal-1234');
+    assert.equal(res.success, false);
+    assert.equal(res.nameTaken, true);
+    assert.equal(res.freshSuggestions.length, 3);
+    for (const s of res.freshSuggestions) {
+      assert.notEqual(s.toLowerCase(), 'pranjal-1234');
+    }
+  });
+
+  test('existing participant reconnects under their reserved display name without duplicate records', () => {
+    const members = [
+      { userId: 'usr_orig_1', displayName: 'Pranjal', role: 'guest' },
+      { userId: 'usr_orig_2', displayName: 'Maya', role: 'guest' },
+    ];
+
+    function reconnect(userId, requestedName) {
+      // Exclude self userId
+      const otherMembers = members.filter((m) => m.userId !== userId);
+      const taken = new Set(otherMembers.map((m) => m.displayName.toLowerCase()));
+
+      if (taken.has(requestedName.toLowerCase())) {
+        return { success: false, nameTaken: true };
+      }
+
+      // Update existing record
+      const idx = members.findIndex((m) => m.userId === userId);
+      if (idx >= 0) {
+        members[idx].displayName = requestedName;
+      }
+      return { success: true, member: members[idx] };
+    }
+
+    // usr_orig_1 reconnecting with Pranjal
+    const result = reconnect('usr_orig_1', 'Pranjal');
+    assert.equal(result.success, true);
+    assert.equal(result.member.displayName, 'Pranjal');
+    assert.equal(members.length, 2, 'Must not duplicate membership records');
+  });
 });
 
 

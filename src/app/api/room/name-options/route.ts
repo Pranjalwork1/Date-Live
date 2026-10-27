@@ -22,12 +22,15 @@ export async function GET(req: NextRequest) {
 
     const members = await getRoomMembers(room.id);
     const takenNames = new Set(members.map((m) => m.display_name.trim().toLowerCase()));
+    if (room.host_name) {
+      takenNames.add(room.host_name.trim().toLowerCase());
+    }
 
-    const suggestions = generateNumericSuffixOptions(name.trim(), takenNames, 4);
+    const suggestions = generateNumericSuffixOptions(name.trim(), takenNames, 3);
 
     return NextResponse.json({
       success: true,
-      baseName: name.trim().replace(/-\d{4,}$/, ''),
+      baseName: name.trim().replace(/[-_#\s]*\d+$/, '') || 'Guest',
       suggestions,
     });
   } catch (err: unknown) {

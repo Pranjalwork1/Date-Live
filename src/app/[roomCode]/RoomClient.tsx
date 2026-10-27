@@ -28,7 +28,7 @@ import DeleteConfirmModal from '@/components/room/DeleteConfirmModal';
 import RoomDeletedNoticeModal from '@/components/room/RoomDeletedNoticeModal';
 import InvitePartnerModal from '@/components/modals/InvitePartnerModal';
 import { useRouter } from 'next/navigation';
-import { Heart, Loader2, Sparkles, RefreshCw } from 'lucide-react';
+import { Heart, Loader2, Sparkles, RefreshCw, LogIn } from 'lucide-react';
 
 interface RoomClientProps {
   initialRoom: DateRoom;
@@ -84,6 +84,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     originalName: string;
     suggestions: string[];
   } | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
 
   // Real-time Media States
@@ -827,8 +828,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       if (res.status === 409 || data.nameTaken) {
         setNameConflict({
           originalName: data.originalName || cleanName,
-          suggestions: data.suggestions || [],
+          suggestions: (data.suggestions || []).slice(0, 3),
         });
+        setSelectedSuggestion(null);
         setIsJoining(false);
         return;
       }
@@ -896,8 +898,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       const data = await res.json();
       if (data.suggestions && data.suggestions.length > 0) {
         setNameConflict((prev) =>
-          prev ? { ...prev, suggestions: data.suggestions } : null
+          prev ? { ...prev, suggestions: data.suggestions.slice(0, 3) } : null
         );
+        setSelectedSuggestion(null);
       }
     } catch {
       // safe fallback
@@ -1732,41 +1735,67 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             {nameConflict ? (
               /* Choose your display name - Duplicate name selector */
               <div className="flex flex-col gap-4 animate-fade-in text-left">
-                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3.5 text-xs text-purple-200">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="font-semibold text-white">Choose your username</p>
-                    <button
-                      type="button"
-                      onClick={() => setNameConflict(null)}
-                      className="text-[11px] text-purple-300 hover:text-white underline cursor-pointer"
-                    >
-                      ← Type different name
-                    </button>
-                  </div>
-                  <p className="text-slate-300 text-[11px] leading-relaxed">
-                    Someone named <strong className="text-rose-300 font-semibold">{nameConflict.originalName}</strong> is already in this movie date. Pick an available numbered username below:
+                <div>
+                  <h3 className="text-xl font-bold tracking-tight text-white mb-1">
+                    This name is already taken in this room.
+                  </h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Choose an available display name to continue.
                   </p>
                 </div>
 
+                {/* Exactly three selectable suggestion options */}
                 <div className="flex flex-col gap-2">
-                  {nameConflict.suggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      type="button"
-                      disabled={isJoining}
-                      onClick={() => void handleJoinRoom(suggestion)}
-                      className="flex items-center justify-between w-full px-4 py-3 rounded-2xl border border-purple-500/30 bg-gradient-to-r from-purple-500/10 to-indigo-500/10 hover:from-purple-500/25 hover:to-indigo-500/25 hover:border-purple-400/60 text-white font-medium transition-all shadow-md active:scale-[0.98] group cursor-pointer"
-                    >
-                      <span className="font-semibold text-sm text-purple-200 group-hover:text-white transition-colors">
-                        {suggestion}
-                      </span>
-                      <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-purple-500/25 text-purple-200 border border-purple-500/40 group-hover:bg-purple-500 group-hover:text-white transition-all">
-                        {isJoining ? 'Joining...' : 'Select & Join'}
-                      </span>
-                    </button>
-                  ))}
+                  {nameConflict.suggestions.slice(0, 3).map((suggestion) => {
+                    const isSelected = selectedSuggestion === suggestion;
+                    return (
+                      <button
+                        key={suggestion}
+                        type="button"
+                        disabled={isJoining}
+                        onClick={() => {
+                          setSelectedSuggestion(suggestion);
+                          setErrorMessage(null);
+                        }}
+                        className={`flex items-center justify-between w-full px-4 py-3 rounded-2xl border transition-all shadow-md active:scale-[0.98] cursor-pointer ${
+                          isSelected
+                            ? 'border-purple-400 bg-gradient-to-r from-purple-500/25 to-indigo-500/25 ring-2 ring-purple-400/50 shadow-[0_0_20px_-3px_rgba(168,85,247,0.35)]'
+                            : 'border-white/10 bg-white/5 hover:border-purple-500/40 hover:bg-white/10 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`flex h-4 w-4 items-center justify-center rounded-full border transition-all ${
+                              isSelected
+                                ? 'border-purple-400 bg-purple-500 text-white'
+                                : 'border-white/30 bg-transparent'
+                            }`}
+                          >
+                            {isSelected && <span className="h-1.5 w-1.5 rounded-full bg-white" />}
+                          </div>
+                          <span
+                            className={`font-semibold text-sm transition-colors ${
+                              isSelected ? 'text-white' : 'text-slate-200'
+                            }`}
+                          >
+                            {suggestion}
+                          </span>
+                        </div>
+                        <span
+                          className={`text-[11px] font-medium px-2.5 py-0.5 rounded-full transition-all ${
+                            isSelected
+                              ? 'bg-purple-500 text-white shadow-sm'
+                              : 'bg-white/10 text-slate-400'
+                          }`}
+                        >
+                          {isSelected ? 'Selected' : 'Available'}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
 
+                {/* Controls: Generate More & Change Name */}
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     type="button"
@@ -1774,17 +1803,47 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                     onClick={handleGenerateMoreOptions}
                     className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:text-white hover:border-purple-400/50 hover:bg-white/5 transition-all cursor-pointer"
                   >
-                    <RefreshCw className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`} />
-                    <span>{isGeneratingMore ? 'Finding new options...' : 'More options'}</span>
+                    <RefreshCw
+                      className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`}
+                    />
+                    <span>{isGeneratingMore ? 'Generating...' : 'Generate More'}</span>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNameConflict(null)}
+                    disabled={isJoining}
+                    onClick={() => {
+                      setNameConflict(null);
+                      setSelectedSuggestion(null);
+                    }}
                     className="py-2.5 px-3 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
                   >
-                    Cancel
+                    Change Name
                   </button>
                 </div>
+
+                {/* Join Room confirmation CTA button */}
+                <button
+                  type="button"
+                  disabled={!selectedSuggestion || isJoining}
+                  onClick={() => {
+                    if (selectedSuggestion) {
+                      void handleJoinRoom(selectedSuggestion);
+                    }
+                  }}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 py-3 text-sm font-semibold text-white shadow-lg shadow-rose-500/25 hover:from-rose-400 hover:to-pink-400 active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all cursor-pointer"
+                >
+                  {isJoining ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Joining Room...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogIn className="h-4 w-4" />
+                      <span>Join Room</span>
+                    </>
+                  )}
+                </button>
               </div>
             ) : (
               /* Standard guest name input form */
