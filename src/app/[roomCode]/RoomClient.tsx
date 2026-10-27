@@ -1496,32 +1496,35 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       )}
 
       {/* MAIN THEATER CONTAINER */}
-      <main className="relative flex-1 flex flex-col lg:flex-row gap-4 p-4 sm:p-6 pt-20 sm:pt-22 pb-24 max-w-7xl mx-auto w-full z-10">
-        {/* Left / Top Screen Stage */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <ScreenStage
-            stream={screenStream}
-            audioStream={screenAudioStream}
-            isSharing={isScreenSharing}
-            sharerName={sharerName}
-            isLocalSharing={isLocalSharing}
-            hasTabAudio={hasTabAudio}
-            theme={theme}
-            isTheaterMode={isTheaterMode}
-            participantCount={onlineCount}
-            onOpenInvite={() => setIsInviteModalOpen(true)}
-            onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
-            onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
-            onStartScreenShare={handleToggleScreenShare}
-          />
+      <main className="relative flex-1 flex flex-col p-3 sm:p-5 pt-18 sm:pt-20 pb-24 max-w-[1600px] mx-auto w-full z-10">
+        <div className="flex-1 flex flex-col lg:flex-row gap-4 items-start min-w-0">
+          {/* Screen Share Stage (Left on desktop, Top on mobile) */}
+          <div className="flex-1 w-full min-w-0 flex flex-col">
+            <ScreenStage
+              stream={screenStream}
+              audioStream={screenAudioStream}
+              isSharing={isScreenSharing}
+              sharerName={sharerName}
+              isLocalSharing={isLocalSharing}
+              hasTabAudio={hasTabAudio}
+              theme={theme}
+              isTheaterMode={isTheaterMode}
+              participantCount={onlineCount}
+              onOpenInvite={() => setIsInviteModalOpen(true)}
+              onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
+              onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
+              onStartScreenShare={handleToggleScreenShare}
+            />
+          </div>
 
-          {/* Participant video tiles & avatars beneath screen in normal mode */}
+          {/* Camera cards: Beside screen share on desktop, below on mobile */}
           {!isTheaterMode && (
-            <div className="mt-4">
+            <div className="w-full lg:w-72 xl:w-80 2xl:w-96 shrink-0 flex flex-col">
               <ParticipantPanel
                 participants={participants}
                 currentUserId={currentUserId}
                 theme={theme}
+                onOpenInvite={() => setIsInviteModalOpen(true)}
               />
             </div>
           )}
