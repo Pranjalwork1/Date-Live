@@ -95,6 +95,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [hasTabAudio, setHasTabAudio] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(false);
+  const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
 
   // LiveKit Instance & Track Refs
   const lkRoomRef = useRef<Room | null>(null);
@@ -1000,7 +1001,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     try {
       if (nextCameraOn) {
         if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
-          await lkRoomRef.current.localParticipant.setCameraEnabled(true);
+          await lkRoomRef.current.localParticipant.setCameraEnabled(true, {
+            facingMode: cameraFacingMode,
+          });
           const camPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
           const track = camPub?.videoTrack?.mediaStreamTrack;
           if (track) {
@@ -1013,7 +1016,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             );
           }
         } else {
-          const userMedia = await navigator.mediaDevices.getUserMedia({ video: true });
+          const userMedia = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: cameraFacingMode },
+          });
           const track = userMedia.getVideoTracks()[0];
           if (track) {
             localCameraTrackRef.current = track;
@@ -1071,6 +1076,67 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       console.warn('Camera toggle error:', e);
       setIsCameraOn(false);
       showToast('Camera unavailable or permission denied.');
+    }
+  };
+
+  // Switch camera between selfie (front) and back camera
+  const handleFlipCamera = async () => {
+    if (!isCameraOn) return;
+    const nextMode: 'user' | 'environment' = cameraFacingMode === 'user' ? 'environment' : 'user';
+
+    try {
+      if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
+        const camPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+        if (camPub?.videoTrack) {
+          await camPub.videoTrack.restartTrack({ facingMode: nextMode });
+          const track = camPub.videoTrack.mediaStreamTrack;
+          if (track) {
+            localCameraTrackRef.current = track;
+            const stream = new MediaStream([track]);
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === currentUserId ? { ...p, isCameraOn: true, cameraStream: stream } : p
+              )
+            );
+          }
+        } else {
+          await lkRoomRef.current.localParticipant.setCameraEnabled(true, { facingMode: nextMode });
+          const newPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
+          const track = newPub?.videoTrack?.mediaStreamTrack;
+          if (track) {
+            localCameraTrackRef.current = track;
+            const stream = new MediaStream([track]);
+            setParticipants((prev) =>
+              prev.map((p) =>
+                p.userId === currentUserId ? { ...p, isCameraOn: true, cameraStream: stream } : p
+              )
+            );
+          }
+        }
+      } else {
+        const oldTrack = localCameraTrackRef.current;
+        const userMedia = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: nextMode } },
+        });
+        const track = userMedia.getVideoTracks()[0];
+        if (track) {
+          if (oldTrack) {
+            oldTrack.stop();
+          }
+          localCameraTrackRef.current = track;
+          const stream = new MediaStream([track]);
+          setParticipants((prev) =>
+            prev.map((p) =>
+              p.userId === currentUserId ? { ...p, isCameraOn: true, cameraStream: stream } : p
+            )
+          );
+        }
+      }
+      setCameraFacingMode(nextMode);
+      showToast(nextMode === 'user' ? 'Switched to selfie camera' : 'Switched to back camera');
+    } catch (err: unknown) {
+      console.warn('Failed to switch camera:', err);
+      showToast('Unable to switch camera. Back/front camera may not be available on this device.');
     }
   };
 
@@ -1525,6 +1591,8 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 currentUserId={currentUserId}
                 theme={theme}
                 onOpenInvite={() => setIsInviteModalOpen(true)}
+                onFlipCamera={handleFlipCamera}
+                cameraFacingMode={cameraFacingMode}
               />
             </div>
           )}

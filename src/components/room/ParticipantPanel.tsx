@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { Mic, MicOff, Crown, ScreenShare, VideoOff } from 'lucide-react';
+import { Mic, MicOff, Crown, ScreenShare, VideoOff, SwitchCamera } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
 import { THEMES, normalizeTheme } from '@/lib/themes';
 
@@ -22,14 +22,18 @@ interface ParticipantPanelProps {
   currentUserId: string;
   theme?: ThemeType;
   onOpenInvite?: () => void;
+  onFlipCamera?: () => void;
+  cameraFacingMode?: 'user' | 'environment';
 }
 
 function LiveCameraTile({
   stream,
   isSelf,
+  facingMode = 'user',
 }: {
   stream: MediaStream;
   isSelf: boolean;
+  facingMode?: 'user' | 'environment';
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -42,13 +46,17 @@ function LiveCameraTile({
     }
   }, [stream]);
 
+  const shouldMirror = isSelf && facingMode === 'user';
+
   return (
     <video
       ref={videoRef}
       autoPlay
       playsInline
       muted={isSelf}
-      className="w-full h-full object-cover rounded-2xl"
+      className={`w-full h-full object-cover rounded-2xl transition-transform duration-300 ${
+        shouldMirror ? '-scale-x-100' : ''
+      }`}
     />
   );
 }
@@ -58,6 +66,8 @@ export default function ParticipantPanel({
   currentUserId,
   theme = 'midnight',
   onOpenInvite,
+  onFlipCamera,
+  cameraFacingMode = 'user',
 }: ParticipantPanelProps) {
   const activeTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
   const activeCount = participants.filter((p) => p.status === 'live').length;
@@ -114,7 +124,11 @@ export default function ParticipantPanel({
             {hasActiveCamera ? (
               /* LIVE CAMERA VIDEO TILE */
               <div className="relative w-full h-full flex items-center justify-center bg-black">
-                <LiveCameraTile stream={p.cameraStream!} isSelf={isSelf} />
+                <LiveCameraTile
+                  stream={p.cameraStream!}
+                  isSelf={isSelf}
+                  facingMode={isSelf ? cameraFacingMode : 'user'}
+                />
 
                 {/* Overlays on Camera Tile */}
                 <div className="absolute inset-0 pointer-events-none p-2 sm:p-2.5 flex flex-col justify-between bg-gradient-to-t from-black/85 via-transparent to-black/45">
@@ -135,7 +149,23 @@ export default function ParticipantPanel({
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
+                      {/* Top-Right Camera Flip button for selfie/back camera switch */}
+                      {isSelf && onFlipCamera && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onFlipCamera();
+                          }}
+                          className="pointer-events-auto flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-black/70 hover:bg-black/90 active:scale-90 text-white/95 hover:text-white border border-white/25 hover:border-white/50 backdrop-blur-md shadow-md transition-all cursor-pointer ring-0 hover:ring-2 hover:ring-rose-400/40"
+                          title={`Switch to ${cameraFacingMode === 'user' ? 'back' : 'selfie'} camera`}
+                          aria-label="Switch between selfie and back camera"
+                        >
+                          <SwitchCamera className="h-3.5 w-3.5 text-white" />
+                        </button>
+                      )}
+
                       {p.isSharingScreen && (
                         <span className="p-1 rounded-full bg-rose-500/80 text-white shadow backdrop-blur-md" title="Sharing screen">
                           <ScreenShare className="h-3 w-3" />
