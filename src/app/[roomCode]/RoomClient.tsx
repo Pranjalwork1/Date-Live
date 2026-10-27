@@ -338,6 +338,30 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             )
           );
         }
+      } else if (type === 'CHAT_MESSAGE') {
+        const incomingMsg = payload as RoomMessage;
+        if (incomingMsg && incomingMsg.sender_id !== currentUserId) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+            const updated = [...prev, incomingMsg];
+            if (typeof window !== 'undefined' && currentUserId && room.room_code) {
+              try {
+                const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+                sessionStorage.setItem(storageKey, JSON.stringify(updated));
+              } catch {
+                // safe
+              }
+            }
+            return updated;
+          });
+          setIsChatOpen((isOpen) => {
+            if (!isOpen) {
+              setUnreadCount((count) => count + 1);
+              showToast(`💬 ${incomingMsg.sender_name}: ${incomingMsg.content.slice(0, 30)}${incomingMsg.content.length > 30 ? '...' : ''}`);
+            }
+            return isOpen;
+          });
+        }
       }
     };
 
@@ -567,6 +591,30 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                     p.userId === userId ? { ...p, isCameraOn: Boolean(targetCam) } : p
                   )
                 );
+              }
+            } else if (data.type === 'CHAT_MESSAGE') {
+              const incomingMsg = data.payload as RoomMessage;
+              if (incomingMsg && incomingMsg.sender_id !== currentUserId) {
+                setMessages((prev) => {
+                  if (prev.some((m) => m.id === incomingMsg.id)) return prev;
+                  const updated = [...prev, incomingMsg];
+                  if (typeof window !== 'undefined' && currentUserId && room.room_code) {
+                    try {
+                      const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
+                      sessionStorage.setItem(storageKey, JSON.stringify(updated));
+                    } catch {
+                      // safe
+                    }
+                  }
+                  return updated;
+                });
+                setIsChatOpen((isOpen) => {
+                  if (!isOpen) {
+                    setUnreadCount((count) => count + 1);
+                    showToast(`💬 ${incomingMsg.sender_name}: ${incomingMsg.content.slice(0, 30)}${incomingMsg.content.length > 30 ? '...' : ''}`);
+                  }
+                  return isOpen;
+                });
               }
             }
           } catch (e) {
@@ -1217,22 +1265,23 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     setReactions((prev) => prev.filter((r) => r.id !== id));
   };
 
-  // Chat message sending - Local-only, Sender-only (immediately added, no network broadcast)
+  // Chat message sending - Real-time broadcast to room members
   const handleSendMessage = async (content: string) => {
     const trimmed = content.trim();
     if (!trimmed) return;
 
-    const localMessage: RoomMessage = {
-      id: `local_msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    const newMessage: RoomMessage = {
+      id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       room_id: room.id,
       sender_id: currentUserId,
-      sender_name: displayName || 'You',
+      sender_name: displayName || 'Guest',
       content: trimmed,
       created_at: new Date().toISOString(),
     };
 
+    // 1. Add to local state & persist
     setMessages((prev) => {
-      const updated = [...prev, localMessage];
+      const updated = [...prev, newMessage];
       if (typeof window !== 'undefined' && currentUserId && room.room_code) {
         try {
           const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
@@ -1243,6 +1292,28 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       }
       return updated;
     });
+
+    const chatPayload = {
+      type: 'CHAT_MESSAGE',
+      payload: newMessage,
+    };
+
+    // 2. Broadcast via LiveKit Data Channel to all remote room members
+    if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
+      try {
+        const payloadBytes = new TextEncoder().encode(JSON.stringify(chatPayload));
+        void lkRoomRef.current.localParticipant.publishData(payloadBytes, { reliable: true });
+      } catch (err) {
+        console.warn('LiveKit chat broadcast error:', err);
+      }
+    }
+
+    // 3. Broadcast via BroadcastChannel for multi-tab / local network fallback
+    try {
+      broadcastChannelRef.current?.postMessage(chatPayload);
+    } catch (err) {
+      console.warn('BroadcastChannel chat error:', err);
+    }
   };
 
   // Ambience audio toggle

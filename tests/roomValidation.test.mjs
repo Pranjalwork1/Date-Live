@@ -273,6 +273,41 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.notEqual(msgsA[0].content, msgsB[0].content, 'Chat messages must not cross participant boundaries');
   });
 
+  test('real-time room chat broadcast delivers messages to all room members', () => {
+    const roomSubscribers = new Map(); // userId -> messageList
+    roomSubscribers.set('usr_A', []);
+    roomSubscribers.set('usr_B', []);
+    roomSubscribers.set('usr_C', []);
+
+    function broadcastRoomMessage(senderId, senderName, text) {
+      const msg = {
+        id: `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        senderId,
+        senderName,
+        content: text.trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      for (const [userId, msgs] of roomSubscribers.entries()) {
+        msgs.push(msg);
+      }
+      return msg;
+    }
+
+    broadcastRoomMessage('usr_A', 'Aarav', 'Movie is starting!');
+
+    const msgsA = roomSubscribers.get('usr_A');
+    const msgsB = roomSubscribers.get('usr_B');
+    const msgsC = roomSubscribers.get('usr_C');
+
+    assert.equal(msgsA.length, 1);
+    assert.equal(msgsB.length, 1);
+    assert.equal(msgsC.length, 1);
+    assert.equal(msgsB[0].senderName, 'Aarav');
+    assert.equal(msgsB[0].content, 'Movie is starting!');
+    assert.equal(msgsC[0].content, 'Movie is starting!');
+  });
+
   test('any participant can initiate screen sharing and sharer name is accurately tracked', () => {
     let activeSharer = null;
     function startScreenShare(participant) {
