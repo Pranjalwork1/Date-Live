@@ -1636,7 +1636,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       )}
 
       {/* MAIN THEATER CONTAINER */}
-      <main className="relative flex-1 flex flex-col px-2.5 sm:px-4 lg:px-5 pt-16 sm:pt-18 lg:pt-20 pb-20 sm:pb-24 max-w-[1600px] mx-auto w-full z-10">
+      <main
+        className={`relative flex-1 flex flex-col px-2.5 sm:px-4 lg:px-5 pt-16 sm:pt-18 lg:pt-20 pb-20 sm:pb-24 max-w-[1600px] mx-auto w-full z-10 transition-all duration-300 ${
+          isChatOpen ? 'lg:mr-80 xl:mr-96' : ''
+        }`}
+      >
         <div className="flex-1 flex flex-col lg:flex-row gap-2.5 sm:gap-4 items-start min-w-0">
           {/* Screen Share Stage — full width on mobile, flex-1 on desktop */}
           <div className="flex-1 w-full min-w-0 flex flex-col">

@@ -144,10 +144,11 @@ export default function ChatPanel({
             {/* Generous touch target for closing on phones (36px+) */}
             <button
               onClick={onClose}
-              className="flex h-9 w-9 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-white/5 hover:bg-white/15 text-slate-300 hover:text-white transition-all cursor-pointer active:scale-95 border border-white/10"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white transition-all cursor-pointer active:scale-95 border border-white/15 shadow-sm"
               aria-label="Close chat"
             >
-              <X className="h-4 w-4" />
+              <X className="h-3.5 w-3.5" />
+              <span className="text-xs font-semibold">Close</span>
             </button>
           </div>
         </div>
