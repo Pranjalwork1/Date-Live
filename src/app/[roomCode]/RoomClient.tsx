@@ -1496,9 +1496,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       )}
 
       {/* MAIN THEATER CONTAINER */}
-      <main className="relative flex-1 flex flex-col p-3 sm:p-5 pt-18 sm:pt-20 pb-24 max-w-[1600px] mx-auto w-full z-10">
-        <div className="flex-1 flex flex-col lg:flex-row gap-4 items-start min-w-0">
-          {/* Screen Share Stage (Left on desktop, Top on mobile) */}
+      <main className="relative flex-1 flex flex-col px-2.5 sm:px-4 lg:px-5 pt-16 sm:pt-18 lg:pt-20 pb-20 sm:pb-24 max-w-[1600px] mx-auto w-full z-10">
+        <div className="flex-1 flex flex-col lg:flex-row gap-2.5 sm:gap-4 items-start min-w-0">
+          {/* Screen Share Stage — full width on mobile, flex-1 on desktop */}
           <div className="flex-1 w-full min-w-0 flex flex-col">
             <ScreenStage
               stream={screenStream}
@@ -1517,9 +1517,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             />
           </div>
 
-          {/* Camera cards: Beside screen share on desktop, below on mobile */}
+          {/* Camera cards — side-by-side 2-col grid on mobile, vertical column on desktop */}
           {!isTheaterMode && (
-            <div className="w-full lg:w-72 xl:w-80 2xl:w-96 shrink-0 flex flex-col">
+            <div className="w-full lg:w-68 xl:w-76 2xl:w-88 shrink-0 flex flex-col">
               <ParticipantPanel
                 participants={participants}
                 currentUserId={currentUserId}

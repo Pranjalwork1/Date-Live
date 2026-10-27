@@ -70,7 +70,7 @@ export default function ParticipantPanel({
   });
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2.5 sm:gap-3.5 w-full lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto lg:pr-1">
+    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2 sm:gap-3 w-full lg:max-h-[calc(100vh-180px)] lg:overflow-y-auto lg:pr-1">
       {sortedParticipants.map((p) => {
         const isSelf = p.userId === currentUserId;
         const isLive = p.status === 'live';

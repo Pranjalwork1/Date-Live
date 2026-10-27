@@ -125,14 +125,14 @@ export default function ScreenStage({
   return (
     <div
       ref={containerRef}
-      className="relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-3xl backdrop-blur-xl transition-all duration-500 w-full aspect-video min-h-[340px] sm:min-h-[480px]"
+      className="relative flex-1 flex flex-col items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl backdrop-blur-xl transition-all duration-500 w-full aspect-video min-h-[200px] sm:min-h-[340px] lg:min-h-[420px]"
       style={{
         backgroundColor: currentTheme.cardBg,
-        borderColor: currentTheme.cardBorder,
-        borderWidth: '1px',
+        borderWidth: '1.5px',
         borderStyle: 'solid',
+        borderColor: isSharing ? 'rgba(244,63,94,0.55)' : currentTheme.cardBorder,
         boxShadow: isSharing
-          ? `0 30px 80px -15px rgba(0, 0, 0, 0.95), 0 0 50px -5px ${currentTheme.glowColor}`
+          ? `0 0 0 1px rgba(244,63,94,0.2), 0 20px 60px -15px rgba(0,0,0,0.95), 0 0 40px -5px rgba(244,63,94,0.35)`
           : `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px -8px ${currentTheme.glowColor}`,
       }}
     >
@@ -151,7 +151,7 @@ export default function ScreenStage({
             ref={videoRef}
             autoPlay
             playsInline
-            muted={isLocalSharing} // Mute local preview to prevent echo loops
+            muted={isLocalSharing}
             className="w-full h-full max-h-[calc(100vh-140px)] object-contain select-none"
           />
 
@@ -161,29 +161,26 @@ export default function ScreenStage({
           )}
 
           {/* Top Stage Bar: Live screen indicator, sharer info and audio indicators */}
-          <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none z-20">
-            <div className="flex items-center gap-2 rounded-full bg-black/75 px-3.5 py-1.5 backdrop-blur-xl border border-white/10 text-xs text-white shadow-xl pointer-events-auto">
+          <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex items-center justify-between pointer-events-none z-20">
+            <div className="flex items-center gap-1.5 rounded-full bg-black/80 px-2.5 sm:px-3.5 py-1 sm:py-1.5 backdrop-blur-xl border border-white/10 text-xs text-white shadow-xl pointer-events-auto">
               <span
-                className="flex h-2 w-2 rounded-full animate-pulse shadow-sm"
-                style={{ backgroundColor: currentTheme.accentFrom, boxShadow: `0 0 8px ${currentTheme.accentFrom}` }}
+                className="flex h-2 w-2 rounded-full animate-pulse shadow-sm shrink-0"
+                style={{ backgroundColor: '#f43f5e', boxShadow: '0 0 8px rgba(244,63,94,0.8)' }}
               />
-              <span
-                className="font-semibold text-[11px] uppercase tracking-wider"
-                style={{ color: currentTheme.accentTextColor }}
-              >
-                Live Screen
+              <span className="font-semibold text-[10px] sm:text-[11px] uppercase tracking-wider text-rose-300">
+                Live
               </span>
-              <span className="text-slate-400">·</span>
-              <span className="font-medium text-slate-200">
+              <span className="hidden sm:inline text-slate-400">·</span>
+              <span className="hidden sm:inline font-medium text-slate-200 text-[11px] truncate max-w-[120px]">
                 {isLocalSharing ? 'You are sharing' : `${sharerName} is sharing`}
               </span>
             </div>
 
-            <div className="flex items-center gap-2 pointer-events-auto">
-              {/* Tab Audio Indicator */}
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              {/* Tab Audio Indicator - hidden on xs, shown sm+ */}
               <button
                 onClick={onOpenAudioHelp}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl border transition-all cursor-pointer ${
+                className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium backdrop-blur-xl border transition-all cursor-pointer ${
                   hasTabAudio
                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 shadow-sm'
                     : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
@@ -195,9 +192,22 @@ export default function ScreenStage({
                 <Info className="h-3 w-3 opacity-70" />
               </button>
 
+              {/* Compact audio icon on mobile */}
+              <button
+                onClick={onOpenAudioHelp}
+                className={`flex sm:hidden items-center justify-center h-7 w-7 rounded-full backdrop-blur-xl border transition-all cursor-pointer ${
+                  hasTabAudio
+                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                    : 'bg-amber-500/15 border-amber-500/30 text-amber-300'
+                }`}
+                title="Movie audio status & tips"
+              >
+                <Radio className="h-3.5 w-3.5" />
+              </button>
+
               {/* Volume Slider if remote */}
               {!isLocalSharing && hasTabAudio && (
-                <div className="flex items-center gap-1.5 rounded-full bg-black/75 px-2.5 py-1 backdrop-blur-xl border border-white/10 text-xs text-white">
+                <div className="hidden sm:flex items-center gap-1.5 rounded-full bg-black/75 px-2.5 py-1 backdrop-blur-xl border border-white/10 text-xs text-white">
                   <button onClick={toggleMuteAudio} className="text-slate-300 hover:text-white cursor-pointer">
                     {isAudioMuted || volume === 0 ? (
                       <VolumeX className="h-3.5 w-3.5 text-rose-400" />
@@ -217,10 +227,10 @@ export default function ScreenStage({
                 </div>
               )}
 
-              {/* Fullscreen Button */}
+              {/* Fullscreen Button — bigger tap target on mobile */}
               <button
                 onClick={toggleFullscreen}
-                className="p-2 rounded-full bg-black/75 hover:bg-black/95 backdrop-blur-xl border border-white/10 text-slate-200 hover:text-white transition-colors cursor-pointer"
+                className="flex items-center justify-center h-7 w-7 sm:h-9 sm:w-9 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-xl border border-white/15 text-slate-200 hover:text-white transition-colors cursor-pointer shadow-lg"
                 title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
               >
                 {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -357,7 +367,7 @@ export default function ScreenStage({
       {/* Floating Theater Mode Toggle in Corner */}
       <button
         onClick={onToggleTheaterMode}
-        className="absolute bottom-4 right-4 z-20 flex items-center gap-1.5 rounded-full bg-black/75 hover:bg-black/90 px-3.5 py-1.5 text-xs text-slate-300 hover:text-white border border-white/10 backdrop-blur-xl transition-all shadow-lg cursor-pointer"
+        className="absolute bottom-2.5 right-2.5 sm:bottom-4 sm:right-4 z-20 flex items-center gap-1.5 rounded-full bg-black/80 hover:bg-black/95 px-2.5 sm:px-3.5 py-1.5 text-xs text-slate-300 hover:text-white border border-white/10 backdrop-blur-xl transition-all shadow-lg cursor-pointer"
         title="Toggle distraction-free theater mode"
       >
         <Tv className="h-3.5 w-3.5 text-rose-400" />
