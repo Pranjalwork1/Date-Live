@@ -356,6 +356,74 @@ describe('Moonlit Security & Room Logic Tests', () => {
     assert.equal(sentMessage, 'I love this scene!');
     assert.equal(inputText, '', 'Normal send should clear the input');
   });
+
+  test('generateNumericSuffixOptions offers multiple numbered postfix suggestions', () => {
+    function generateEnhancedOptions(baseName, takenNames, count = 4) {
+      const cleanBase = baseName.trim().slice(0, 35).replace(/[-_#\s]*\d+$/, '').trim() || 'Guest';
+      const suggestions = [];
+
+      const tryAdd = (candidate) => {
+        if (
+          suggestions.length < count &&
+          !takenNames.has(candidate.toLowerCase()) &&
+          !suggestions.includes(candidate)
+        ) {
+          suggestions.push(candidate);
+          return true;
+        }
+        return false;
+      };
+
+      // 1. Next sequential number with space: e.g. "Rahul 3"
+      let seq = 2;
+      while (seq <= 20) {
+        if (tryAdd(`${cleanBase} ${seq}`)) break;
+        seq++;
+      }
+
+      // 2. Next sequential number with dash: e.g. "Rahul-2"
+      let dashSeq = 2;
+      while (dashSeq <= 20) {
+        if (tryAdd(`${cleanBase}-${dashSeq}`)) break;
+        dashSeq++;
+      }
+
+      // 3. Numbered tag: e.g. "Rahul #2"
+      let tagSeq = 2;
+      while (tagSeq <= 20) {
+        if (tryAdd(`${cleanBase} #${tagSeq}`)) break;
+        tagSeq++;
+      }
+
+      // 4. Random 4-digit ID suffix: e.g. "Rahul-4821"
+      let attempts = 0;
+      while (suggestions.length < count && attempts < 100) {
+        attempts++;
+        const suffix = Math.floor(1000 + Math.random() * 9000);
+        tryAdd(`${cleanBase}-${suffix}`);
+      }
+
+      // 5. Fill remaining if needed
+      while (suggestions.length < count && seq <= 30) {
+        tryAdd(`${cleanBase} ${seq}`);
+        seq++;
+      }
+
+      return suggestions;
+    }
+
+    const taken = new Set(['rahul', 'rahul 2']);
+    const options = generateEnhancedOptions('Rahul', taken, 4);
+
+    assert.equal(options.length, 4, 'Should offer 4 distinct options to choose from');
+    assert.ok(options.includes('Rahul 3'), 'Should include next sequential number');
+    assert.ok(options.includes('Rahul-2'), 'Should include dash numbered variant');
+    assert.ok(options.includes('Rahul #2'), 'Should include numbered tag variant');
+    for (const opt of options) {
+      assert.equal(taken.has(opt.toLowerCase()), false, 'Suggested option must not collide with taken names');
+      assert.match(opt, /\d+/, 'Option must include a number suffix');
+    }
+  });
 });
 
 

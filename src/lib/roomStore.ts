@@ -187,19 +187,59 @@ export async function isRoomExpired(code: string): Promise<boolean> {
 export function generateNumericSuffixOptions(
   baseName: string,
   takenNames: Set<string>,
-  count = 3
+  count = 4
 ): string[] {
-  const cleanBase = baseName.trim().slice(0, 35).replace(/-\d{4,}$/, '');
+  // Clean base name: strip any existing numeric postfix e.g. "Aarav-1234", "Aarav 2", "Aarav #2"
+  const cleanBase = baseName.trim().slice(0, 35).replace(/[-_#\s]*\d+$/, '').trim() || 'Guest';
   const suggestions: string[] = [];
+
+  const tryAdd = (candidate: string) => {
+    if (
+      suggestions.length < count &&
+      !takenNames.has(candidate.toLowerCase()) &&
+      !suggestions.includes(candidate)
+    ) {
+      suggestions.push(candidate);
+      return true;
+    }
+    return false;
+  };
+
+  // 1. Next sequential number with space: e.g. "Alex 2", "Alex 3"
+  let seq = 2;
+  while (seq <= 20) {
+    if (tryAdd(`${cleanBase} ${seq}`)) break;
+    seq++;
+  }
+
+  // 2. Next sequential number with dash: e.g. "Alex-2", "Alex-3"
+  let dashSeq = 2;
+  while (dashSeq <= 20) {
+    if (tryAdd(`${cleanBase}-${dashSeq}`)) break;
+    dashSeq++;
+  }
+
+  // 3. Numbered tag: e.g. "Alex #2", "Alex #3"
+  let tagSeq = 2;
+  while (tagSeq <= 20) {
+    if (tryAdd(`${cleanBase} #${tagSeq}`)) break;
+    tagSeq++;
+  }
+
+  // 4. Random 4-digit ID suffix: e.g. "Alex-4821"
   let attempts = 0;
   while (suggestions.length < count && attempts < 100) {
     attempts++;
     const suffix = Math.floor(1000 + Math.random() * 9000);
-    const candidate = `${cleanBase}-${suffix}`;
-    if (!takenNames.has(candidate.toLowerCase()) && !suggestions.includes(candidate)) {
-      suggestions.push(candidate);
-    }
+    tryAdd(`${cleanBase}-${suffix}`);
   }
+
+  // 5. Fill remaining with subsequent sequential numbers if needed
+  while (suggestions.length < count && seq <= 30) {
+    tryAdd(`${cleanBase} ${seq}`);
+    seq++;
+  }
+
   return suggestions;
 }
 
@@ -219,7 +259,7 @@ export async function checkDisplayNameAvailability(
     return { available: true, originalName: cleanName };
   }
 
-  const suggestions = generateNumericSuffixOptions(cleanName, takenNames, 3);
+  const suggestions = generateNumericSuffixOptions(cleanName, takenNames, 4);
   return { available: false, originalName: cleanName, suggestions };
 }
 

@@ -857,19 +857,25 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }
   };
 
-  // Auto-join ONLY for the host who created the room
+  // Auto-join for host who created the room OR guest who already picked their name
   useEffect(() => {
     if (autoJoinedRef.current) return;
+    const sessionName = typeof window !== 'undefined'
+      ? sessionStorage.getItem(`moonlit_name_${room.room_code}`)
+      : null;
     const isHost = Boolean(currentUserId && currentUserId === room.host_user_id);
-    if (!isJoined && isHost) {
+
+    if (!isJoined && (isHost || sessionName)) {
       autoJoinedRef.current = true;
-      const targetName = displayName || room.host_name;
-      const timer = setTimeout(() => {
-        void handleJoinRoom(targetName);
-      }, 0);
-      return () => clearTimeout(timer);
+      const targetName = sessionName || displayName || (isHost ? room.host_name : '');
+      if (targetName) {
+        const timer = setTimeout(() => {
+          void handleJoinRoom(targetName);
+        }, 0);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [currentUserId, room.host_user_id, room.host_name, displayName, isJoined, handleJoinRoom]);
+  }, [currentUserId, room.host_user_id, room.host_name, room.room_code, displayName, isJoined, handleJoinRoom]);
 
   // Screen Sharing Trigger: Exactly ONE browser prompt per user click!
   const handleToggleScreenShare = async () => {
@@ -1585,9 +1591,18 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               /* Choose your display name - Duplicate name selector */
               <div className="flex flex-col gap-4 animate-fade-in text-left">
                 <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-3.5 text-xs text-purple-200">
-                  <p className="font-semibold text-white mb-1">Choose your display name</p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="font-semibold text-white">Choose your username</p>
+                    <button
+                      type="button"
+                      onClick={() => setNameConflict(null)}
+                      className="text-[11px] text-purple-300 hover:text-white underline cursor-pointer"
+                    >
+                      ← Type different name
+                    </button>
+                  </div>
                   <p className="text-slate-300 text-[11px] leading-relaxed">
-                    Someone named <strong className="text-rose-300 font-semibold">{nameConflict.originalName}</strong> is already in this movie date. Pick an available variant to join:
+                    Someone named <strong className="text-rose-300 font-semibold">{nameConflict.originalName}</strong> is already in this movie date. Pick an available numbered username below:
                   </p>
                 </div>
 
@@ -1610,15 +1625,24 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                   ))}
                 </div>
 
-                <button
-                  type="button"
-                  disabled={isGeneratingMore || isJoining}
-                  onClick={handleGenerateMoreOptions}
-                  className="mt-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:text-white hover:border-purple-400/50 hover:bg-white/5 transition-all cursor-pointer"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`} />
-                  <span>{isGeneratingMore ? 'Finding new options...' : 'Generate more options'}</span>
-                </button>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    disabled={isGeneratingMore || isJoining}
+                    onClick={handleGenerateMoreOptions}
+                    className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl border border-dashed border-white/20 text-xs font-medium text-slate-300 hover:text-white hover:border-purple-400/50 hover:bg-white/5 transition-all cursor-pointer"
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 text-purple-400 ${isGeneratingMore ? 'animate-spin' : ''}`} />
+                    <span>{isGeneratingMore ? 'Finding new options...' : 'More options'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNameConflict(null)}
+                    className="py-2.5 px-3 rounded-xl border border-white/10 bg-white/5 text-xs text-slate-300 hover:text-white transition-all cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
             ) : (
               /* Standard guest name input form */
