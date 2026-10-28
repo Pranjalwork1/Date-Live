@@ -108,8 +108,12 @@ export default function ParticipantPanel({
   const activeCount = participants.filter((p) => p.status === 'live').length;
   const [isEnhanceMenuOpen, setIsEnhanceMenuOpen] = useState(false);
 
-  // Place remote participants (partner/guests) first, and self at the end
-  const sortedParticipants = [...participants].sort((a, b) => {
+  // Place remote active participants first, and self at the end; remove offline/left participant cards
+  const activeParticipants = participants.filter(
+    (p) => p.userId === currentUserId || p.status !== 'offline'
+  );
+
+  const sortedParticipants = [...activeParticipants].sort((a, b) => {
     if (a.userId === currentUserId) return 1;
     if (b.userId === currentUserId) return -1;
     return 0;

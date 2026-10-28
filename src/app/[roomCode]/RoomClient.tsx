@@ -41,7 +41,7 @@ import DeleteConfirmModal from '@/components/room/DeleteConfirmModal';
 import RoomDeletedNoticeModal from '@/components/room/RoomDeletedNoticeModal';
 import InvitePartnerModal from '@/components/modals/InvitePartnerModal';
 import { useRouter } from 'next/navigation';
-import { Heart, Loader2, Sparkles, RefreshCw, LogIn } from 'lucide-react';
+import { Heart, Loader2, Sparkles, RefreshCw, LogIn, X } from 'lucide-react';
 
 interface RoomClientProps {
   initialRoom: DateRoom;
@@ -173,6 +173,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [elapsedFormatted, setElapsedFormatted] = useState('00:00');
   const autoJoinedRef = useRef(false);
 
+  // Left Participant Notice state
+  const [lastLeftParticipant, setLastLeftParticipant] = useState<{
+    userId: string;
+    displayName: string;
+    leftAt: number;
+  } | null>(null);
+
   // Latest self state ref for BroadcastChannel sync without recreating listeners
   const selfStateRef = useRef({ displayName, isMuted, isCameraOn, isJoined });
   useEffect(() => {
@@ -257,6 +264,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         triggerReactionAnimation(payload, false);
       } else if (type === 'PARTICIPANT_JOINED') {
         if (payload?.userId !== currentUserId) {
+          setLastLeftParticipant((prev) => (prev?.userId === payload?.userId ? null : prev));
           showToast(`${payload.displayName} is here ❤️`);
           try {
             confetti({
@@ -314,6 +322,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         }
       } else if (type === 'PARTICIPANT_SYNC') {
         if (payload?.userId && payload.userId !== currentUserId) {
+          setLastLeftParticipant((prev) => (prev?.userId === payload.userId ? null : prev));
           setParticipants((prev) => {
             const existing = prev.find((p) => p.userId === payload.userId);
             if (existing) {
@@ -347,8 +356,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           });
         }
       } else if (type === 'PARTICIPANT_LEFT') {
-        if (payload.userId !== currentUserId) {
+        if (payload?.userId !== currentUserId) {
           showToast(`${payload.displayName || 'Partner'} left the room`);
+          setLastLeftParticipant({
+            userId: payload.userId,
+            displayName: payload.displayName || 'Partner',
+            leftAt: Date.now(),
+          });
           setParticipants((prev) =>
             prev.map((item) =>
               item.userId === payload.userId
@@ -678,6 +692,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               const { userId, displayName: leftName } = data.payload || {};
               if (userId && userId !== currentUserId) {
                 showToast(`${leftName || 'Partner'} left the room`);
+                setLastLeftParticipant({
+                  userId,
+                  displayName: leftName || 'Partner',
+                  leftAt: Date.now(),
+                });
                 setParticipants((prev) =>
                   prev.map((item) =>
                     item.userId === userId
@@ -754,6 +773,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
         // Remote participant connected / rejoined
         lkRoom.on(RoomEvent.ParticipantConnected, (p) => {
+          setLastLeftParticipant((prev) => (prev?.userId === p.identity ? null : prev));
           showToast(`${p.name || 'Your person'} is here ❤️`);
           setParticipants((prev) => {
             const existing = prev.find((item) => item.userId === p.identity);
@@ -790,6 +810,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         // Remote participant left or disconnected
         lkRoom.on(RoomEvent.ParticipantDisconnected, (p) => {
           showToast(`${p.name || 'Partner'} left the room`);
+          setLastLeftParticipant({
+            userId: p.identity,
+            displayName: p.name || 'Partner',
+            leftAt: Date.now(),
+          });
           setParticipants((prev) =>
             prev.map((item) =>
               item.userId === p.identity
@@ -1028,6 +1053,15 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         });
         return [selfParticipant, ...Array.from(othersMap.values())];
       });
+
+      if (existingOthers.length > 0) {
+        setLastLeftParticipant((prev) => {
+          if (prev && existingOthers.some((o) => o.userId === prev.userId)) {
+            return null;
+          }
+          return prev;
+        });
+      }
 
       broadcastChannelRef.current?.postMessage({
         type: 'PARTICIPANT_JOINED',
@@ -1888,6 +1922,39 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
               onStartScreenShare={handleToggleScreenShare}
             />
+
+            {/* Left Participant Notice directly below Screen Stage */}
+            {lastLeftParticipant && (
+              <div className="mt-2.5 flex items-center justify-between px-3.5 sm:px-4 py-2.5 rounded-2xl border border-white/10 bg-black/60 backdrop-blur-xl shadow-lg transition-all animate-in fade-in slide-in-from-top-1 duration-300">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="h-2 w-2 rounded-full bg-slate-500 shrink-0" />
+                  <span className="text-xs text-slate-200 truncate">
+                    <strong className="font-semibold text-rose-300">{lastLeftParticipant.displayName}</strong>{' '}
+                    left the room
+                  </span>
+                  <span className="hidden sm:inline text-[11px] text-slate-400 font-light">
+                    · Waiting for them to rejoin ❤️
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => setIsInviteModalOpen(true)}
+                    className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-500/30 text-[11px] font-medium transition-all cursor-pointer active:scale-95 shadow-sm"
+                  >
+                    <span>Invite</span>
+                    <Heart className="h-3 w-3 fill-current text-rose-400" />
+                  </button>
+                  <button
+                    onClick={() => setLastLeftParticipant(null)}
+                    className="h-6 w-6 flex items-center justify-center rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                    title="Dismiss notice"
+                    aria-label="Dismiss notice"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Camera cards — side-by-side 2-col grid on mobile, vertical column on desktop */}
