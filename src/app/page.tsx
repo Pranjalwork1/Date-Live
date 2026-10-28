@@ -16,16 +16,72 @@ import {
   ShieldCheck,
   Radio,
   Mic,
+  Volume2,
+  Play,
+  CheckCircle2,
 } from 'lucide-react';
+
+const PREVIEW_MOODS = [
+  {
+    id: 'midnight',
+    name: 'Midnight',
+    icon: '🌌',
+    glow: 'rgba(56, 189, 248, 0.35)',
+    border: 'border-sky-500/30',
+    bgGradient: 'from-[#081232] via-[#050B20] to-[#030612]',
+    accentText: 'text-sky-300',
+    badgeBg: 'bg-sky-500/20 border-sky-500/40 text-sky-200',
+  },
+  {
+    id: 'candlelight',
+    name: 'Candlelight',
+    icon: '🕯️',
+    glow: 'rgba(251, 146, 60, 0.35)',
+    border: 'border-amber-500/30',
+    bgGradient: 'from-[#281308] via-[#170904] to-[#0A0302]',
+    accentText: 'text-amber-300',
+    badgeBg: 'bg-amber-500/20 border-amber-500/40 text-amber-200',
+  },
+  {
+    id: 'lavender',
+    name: 'Lavender',
+    icon: '💜',
+    glow: 'rgba(192, 132, 252, 0.35)',
+    border: 'border-purple-500/30',
+    bgGradient: 'from-[#220B38] via-[#140624] to-[#08020E]',
+    accentText: 'text-purple-300',
+    badgeBg: 'bg-purple-500/20 border-purple-500/40 text-purple-200',
+  },
+  {
+    id: 'cinema',
+    name: 'Cinema',
+    icon: '🎬',
+    glow: 'rgba(244, 63, 94, 0.35)',
+    border: 'border-rose-500/30',
+    bgGradient: 'from-[#2A0813] via-[#16030A] to-[#070104]',
+    accentText: 'text-rose-300',
+    badgeBg: 'bg-rose-500/20 border-rose-500/40 text-rose-200',
+  },
+];
 
 export default function LandingPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isJoinOpen, setIsJoinOpen] = useState(false);
+  const [selectedMoodId, setSelectedMoodId] = useState('midnight');
+
+  const currentMood = PREVIEW_MOODS.find((m) => m.id === selectedMoodId) || PREVIEW_MOODS[0];
 
   return (
     <div className="min-h-screen w-full relative flex flex-col justify-between bg-gradient-to-b from-[#080A18] via-[#0E122C] to-[#150B22] text-[#F8FAFC] selection:bg-[#FF6B9A] selection:text-white overflow-x-hidden">
       {/* Ambient Starfield & Soft Atmospheric Glows */}
       <Starfield density={75} />
+
+      {/* Atmospheric Background Glow Spots */}
+      <div
+        className="absolute top-1/4 left-10 w-96 h-96 rounded-full blur-[140px] pointer-events-none opacity-25 transition-all duration-700"
+        style={{ background: currentMood.glow }}
+      />
+      <div className="absolute top-1/3 right-10 w-[500px] h-[500px] rounded-full bg-[#FF6B9A]/15 blur-[160px] pointer-events-none" />
 
       {/* Floating Dynamic Island Capsule */}
       <DynamicIsland
@@ -50,7 +106,7 @@ export default function LandingPage() {
               <span>A little closer, even from afar</span>
             </motion.div>
 
-            {/* Large Beautifully Typeset Heading */}
+            {/* Large Beautifully Typeset Heading with Editorial Accent */}
             <motion.h1
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -58,9 +114,9 @@ export default function LandingPage() {
               className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-white leading-[1.15] mb-4 sm:mb-6"
             >
               Your favorite movie.{' '}
-              <span className="bg-gradient-to-r from-[#FF6B9A] via-[#FDA4AF] to-[#C084FC] bg-clip-text text-transparent">
+              <span className="font-editorial italic font-normal tracking-wide text-4xl sm:text-6xl md:text-7xl bg-gradient-to-r from-[#FF6B9A] via-[#FDA4AF] to-[#C084FC] bg-clip-text text-transparent block my-1">
                 Your favorite person.
-              </span>{' '}
+              </span>
               One shared moment.
             </motion.h1>
 
@@ -71,7 +127,7 @@ export default function LandingPage() {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="text-sm sm:text-lg text-slate-300 font-light leading-relaxed mb-6 sm:mb-8 max-w-xl"
             >
-              Movie nights feel better together. Share your screen, hear every laugh, send a little love, and make the distance feel smaller.
+              Movie nights feel better together. Share your screen with movie audio, see each other in candlelit clarity, send animated hearts, and make the distance feel smaller.
             </motion.p>
 
             {/* CTA Buttons */}
@@ -79,7 +135,7 @@ export default function LandingPage() {
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto mb-6"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 w-full sm:w-auto mb-4"
             >
               <button
                 onClick={() => setIsCreateOpen(true)}
@@ -98,41 +154,42 @@ export default function LandingPage() {
               </button>
             </motion.div>
 
-            {/* Small Privacy & Real-Time Features Label */}
+            {/* Trust & Instant Onboarding Badge */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="flex items-center gap-2 text-xs text-rose-300/80 font-medium"
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md text-xs text-rose-200/90 font-medium"
             >
-              <span>Private rooms</span>
-              <span className="text-slate-600">·</span>
-              <span>Real-time reactions</span>
-              <span className="text-slate-600">·</span>
-              <span>Made for two</span>
+              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+              <span>No sign-up or app download · 100% free · Ready in 5 seconds</span>
             </motion.div>
           </div>
 
-          {/* RIGHT COLUMN: Large Attractive Movie Room Preview Mockup */}
+          {/* RIGHT COLUMN: Interactive Movie Room Preview Mockup with Live Video Call Bubbles */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
             className="lg:col-span-6 relative w-full"
           >
-            {/* Glowing Ambient Light Backdrop */}
-            <div className="absolute -inset-2 rounded-3xl bg-gradient-to-tr from-[#FF6B9A]/20 via-[#C084FC]/15 to-transparent blur-2xl pointer-events-none" />
+            {/* Glowing Ambient Light Backdrop tied to selected mood */}
+            <div
+              className="absolute -inset-3 rounded-3xl blur-3xl pointer-events-none transition-all duration-700 opacity-60"
+              style={{ background: currentMood.glow }}
+            />
 
             {/* Cinema Stage Frame Mockup */}
             <div
-              className="relative rounded-3xl border border-white/15 bg-black/80 p-3 sm:p-4 shadow-2xl backdrop-blur-2xl overflow-hidden select-none"
+              className={`relative rounded-3xl border ${currentMood.border} bg-black/85 p-3 sm:p-4 shadow-2xl backdrop-blur-2xl overflow-hidden select-none transition-colors duration-500`}
               style={{
-                boxShadow:
-                  '0 30px 80px -20px rgba(0, 0, 0, 0.95), 0 0 50px -10px rgba(255, 107, 154, 0.3)',
+                boxShadow: `0 30px 80px -20px rgba(0, 0, 0, 0.95), 0 0 50px -10px ${currentMood.glow}`,
               }}
             >
               {/* 16:9 Screen Stage Container */}
-              <div className="relative aspect-video w-full rounded-2xl bg-gradient-to-b from-[#0B0F28] via-[#07091A] to-[#04050D] border border-white/10 flex flex-col justify-between p-4 sm:p-6 overflow-hidden">
+              <div
+                className={`relative aspect-video w-full rounded-2xl bg-gradient-to-b ${currentMood.bgGradient} border border-white/10 flex flex-col justify-between p-4 sm:p-5 overflow-hidden transition-all duration-500`}
+              >
                 {/* Top Status Capsule in Mockup */}
                 <div className="w-full flex items-center justify-between z-10">
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/75 border border-white/10 backdrop-blur-xl text-xs font-medium">
@@ -140,20 +197,25 @@ export default function LandingPage() {
                     <span className="text-white font-semibold">Together now ❤️</span>
                   </div>
 
-                  <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-medium backdrop-blur-md">
-                    <Radio className="h-3 w-3" />
-                    <span>Tab Sound Active</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-medium backdrop-blur-md">
+                      <Radio className="h-3 w-3" />
+                      <span>Tab Sound Active</span>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-slate-300 border border-white/15 text-[10px] font-medium">
+                      <span>{currentMood.icon} {currentMood.name}</span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Central Movie Scene Preview with Rising Reaction */}
-                <div className="relative flex flex-col items-center justify-center my-auto z-10 py-3">
-                  <div className="relative mb-3">
-                    <div className="flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#FF6B9A]/20 to-[#C084FC]/20 border border-[#FF6B9A]/30 shadow-xl shadow-[#FF6B9A]/20 backdrop-blur-xl">
-                      <Film className="h-8 w-8 sm:h-10 sm:w-10 text-[#FF6B9A] stroke-[1.2]" />
+                {/* Central Movie Scene Preview with Celestial Glow */}
+                <div className="relative flex flex-col items-center justify-center my-auto z-10 py-2">
+                  <div className="relative mb-2">
+                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#FF6B9A]/20 to-[#C084FC]/20 border border-[#FF6B9A]/30 shadow-xl shadow-[#FF6B9A]/20 backdrop-blur-xl group">
+                      <Play className="h-6 w-6 sm:h-7 sm:w-7 text-[#FF6B9A] fill-[#FF6B9A]/40 ml-0.5" />
                     </div>
 
-                    {/* Animated Floating Heart Reaction */}
+                    {/* Animated Floating Heart Reactions */}
                     <motion.span
                       animate={{ y: [-5, -35], opacity: [0, 1, 0], scale: [0.8, 1.2, 0.9] }}
                       transition={{ duration: 2.4, repeat: Infinity, ease: 'easeOut' }}
@@ -171,17 +233,53 @@ export default function LandingPage() {
                   </div>
 
                   <span className="text-sm sm:text-base font-bold text-white tracking-tight">
-                    Our Movie Night — Interstellar
+                    Our Movie Night — Interstellar (2014)
                   </span>
                   <span className="text-[11px] text-rose-200/80 font-light mt-0.5">
-                    Streaming screen & crisp browser tab sound
+                    Streaming crisp browser tab audio with live face video
                   </span>
+
+                  {/* Simulated Playback Progress Bar */}
+                  <div className="w-full max-w-xs flex items-center gap-2 mt-3 px-2">
+                    <span className="text-[9px] font-mono text-slate-400">01:24:18</span>
+                    <div className="relative flex-1 h-1 bg-white/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-gradient-to-r from-[#FF6B9A] to-[#C084FC] w-[58%]" />
+                    </div>
+                    <span className="text-[9px] font-mono text-slate-400">02:49:00</span>
+                    <Volume2 className="h-3 w-3 text-emerald-400" />
+                  </div>
+                </div>
+
+                {/* Picture-in-Picture Webcam Overlays */}
+                <div className="absolute right-3 sm:right-4 bottom-14 flex items-center gap-2 z-20">
+                  {/* Partner Camera Tile */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-black/85 border border-[#FF6B9A]/40 backdrop-blur-md shadow-lg shadow-black/80">
+                    <div className="relative h-6 w-6 sm:h-7 sm:w-7 rounded-lg overflow-hidden bg-gradient-to-tr from-rose-500 to-purple-600 flex items-center justify-center text-xs">
+                      👩‍🦰
+                      <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-emerald-400 border border-black" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-semibold text-white leading-tight">Partner</span>
+                      <span className="text-[8px] text-rose-300 font-medium">✨ Warm Glow</span>
+                    </div>
+                  </div>
+
+                  {/* You Camera Tile */}
+                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-black/85 border border-white/20 backdrop-blur-md shadow-lg shadow-black/80">
+                    <div className="relative h-6 w-6 sm:h-7 sm:w-7 rounded-lg overflow-hidden bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center text-xs">
+                      👦
+                      <span className="absolute bottom-0 right-0 h-1.5 w-1.5 rounded-full bg-emerald-400 border border-black" />
+                    </div>
+                    <div className="flex flex-col text-left">
+                      <span className="text-[10px] font-semibold text-white leading-tight">You</span>
+                      <span className="text-[8px] text-emerald-300 font-medium">HD 720p</span>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Bottom Bar: Two Participant Chips & Reaction Pill */}
                 <div className="w-full flex items-center justify-between z-10 pt-2 border-t border-white/5 gap-1.5 sm:gap-2">
                   <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden">
-                    {/* Participant Chip: You */}
                     <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
                       <div className="h-4 w-4 sm:h-4.5 sm:w-4.5 rounded-full bg-gradient-to-tr from-[#FF6B9A] to-[#FDA4AF] flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white">
                         Y
@@ -190,7 +288,6 @@ export default function LandingPage() {
                       <Mic className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-emerald-400" />
                     </div>
 
-                    {/* Participant Chip: Your Person */}
                     <div className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
                       <div className="h-4 w-4 sm:h-4.5 sm:w-4.5 rounded-full bg-gradient-to-tr from-[#C084FC] to-[#818CF8] flex items-center justify-center text-[8px] sm:text-[9px] font-bold text-white">
                         P
@@ -212,8 +309,32 @@ export default function LandingPage() {
                 <div className="absolute inset-0 bg-radial-gradient from-[#FF6B9A]/15 via-transparent to-transparent pointer-events-none" />
               </div>
 
+              {/* Interactive Mood Switcher */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 px-1 border-t border-white/10">
+                <span className="text-[11px] text-slate-400 font-light flex items-center gap-1.5">
+                  <Palette className="h-3 w-3 text-rose-300" />
+                  <span>Try room moods:</span>
+                </span>
+                <div className="flex items-center gap-1">
+                  {PREVIEW_MOODS.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMoodId(m.id)}
+                      className={`flex items-center gap-1 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full text-[10px] sm:text-[11px] font-medium transition-all cursor-pointer ${
+                        selectedMoodId === m.id
+                          ? `${m.badgeBg} shadow-md`
+                          : 'bg-white/5 hover:bg-white/10 text-slate-400 hover:text-slate-200 border border-transparent'
+                      }`}
+                    >
+                      <span>{m.icon}</span>
+                      <span className="hidden sm:inline">{m.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Bottom Security Caption */}
-              <div className="flex items-center justify-between pt-2.5 px-1 text-[11px] text-slate-400 font-light">
+              <div className="flex items-center justify-between pt-2 px-1 text-[11px] text-slate-400 font-light">
                 <span className="flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
                   Private room for two with end-to-end media channels
@@ -227,37 +348,59 @@ export default function LandingPage() {
 
       {/* 3 COMPACT FEATURE HIGHLIGHTS */}
       <section className="relative z-10 py-16 px-4 sm:px-6 max-w-6xl mx-auto w-full">
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-rose-300 uppercase tracking-wider mb-3">
+            <Heart className="h-3 w-3 fill-current" />
+            <span>Built for two hearts, miles apart</span>
+          </div>
+          <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+            Everything you need for an unforgettable movie date
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-400 font-light max-w-lg mx-auto">
+            Every feature is crafted to feel effortless, intimate, and private, like sitting right next to each other on the couch.
+          </p>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Card 1: Watch Together */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6B9A]/20 text-[#FF6B9A] mb-1">
+          {/* Card 1: Watch Together with Tab Audio */}
+          <div className="group rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-all hover:-translate-y-1 hover:border-[#FF6B9A]/30 hover:bg-white/[0.07]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FF6B9A]/20 text-[#FF6B9A] mb-1 group-hover:scale-105 transition-transform">
               <ScreenShare className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Watch Together</h2>
-            <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Share your screen and supported browser-tab audio with crystal-clear synchronization.
-            </p>
-          </div>
-
-          {/* Card 2: Feel Every Moment */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C084FC]/20 text-[#C084FC] mb-1">
-              <Heart className="h-6 w-6 fill-[#C084FC]/30" />
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-rose-300 uppercase tracking-wider">
+              <span>Crisp Tab Audio</span>
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Feel Every Moment</h2>
+            <h3 className="text-lg font-bold text-white tracking-tight">Watch in Perfect Sync</h3>
             <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Talk naturally, send messages, and react with a single tap using Apple-inspired floating emojis.
+              Share Netflix, YouTube, or your browser tab with full movie sound and zero delay. No awkward 3-2-1 count-downs.
             </p>
           </div>
 
-          {/* Card 3: Make It Yours */}
-          <div className="rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-transform hover:-translate-y-1">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300 mb-1">
+          {/* Card 2: Low-Light Night Boost Camera */}
+          <div className="group rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-all hover:-translate-y-1 hover:border-[#C084FC]/30 hover:bg-white/[0.07]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C084FC]/20 text-[#C084FC] mb-1 group-hover:scale-105 transition-transform">
+              <Sparkles className="h-6 w-6" />
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-purple-300 uppercase tracking-wider">
+              <span>Low-Light Night Boost</span>
+            </div>
+            <h3 className="text-lg font-bold text-white tracking-tight">See Each Other In The Dark</h3>
+            <p className="text-xs text-slate-300 leading-relaxed font-light">
+              Hardware-tuned camera clarity for cozy dimmed rooms. Switch between Studio HD, Candlelight Warm Glow, and Natural modes.
+            </p>
+          </div>
+
+          {/* Card 3: Ambient Soundscapes & Reactions */}
+          <div className="group rounded-3xl border border-white/10 bg-white/5 p-7 backdrop-blur-xl flex flex-col gap-3 transition-all hover:-translate-y-1 hover:border-amber-400/30 hover:bg-white/[0.07]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400/20 text-amber-300 mb-1 group-hover:scale-105 transition-transform">
               <Palette className="h-6 w-6" />
             </div>
-            <h2 className="text-lg font-bold text-white tracking-tight">Make It Yours</h2>
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-amber-300 uppercase tracking-wider">
+              <span>Atmospheric Moods</span>
+            </div>
+            <h3 className="text-lg font-bold text-white tracking-tight">Rain & Candlelight Ambience</h3>
             <p className="text-xs text-slate-300 leading-relaxed font-light">
-              Choose cozy themes and create your own private movie-date space with ambient soundscapes.
+              Set the mood with rain or vinyl crackle ambience, customizable room themes, and floating hearts you can tap together.
             </p>
           </div>
         </div>
