@@ -73,19 +73,18 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
   const [displayName, setDisplayName] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const sessionName = sessionStorage.getItem(`moonlit_name_${initialRoom.room_code}`);
-      if (sessionName) return sessionName;
-      return localStorage.getItem('moonlit_name') || '';
+      const isHost = Boolean(currentUserId && currentUserId === initialRoom.host_user_id);
+      if (isHost) return initialRoom.host_name || '';
+      return sessionStorage.getItem(`moonlit_name_${initialRoom.room_code}`) || '';
     }
     return '';
   });
 
   const [isJoined, setIsJoined] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
-  const [joinNameInput, setJoinNameInput] = useState(() => {
+  const [joinNameInput, setJoinNameInput] = useState<string>('');
+  const [recentSavedName] = useState<string>(() => {
     if (typeof window !== 'undefined') {
-      const sessionName = sessionStorage.getItem(`moonlit_name_${initialRoom.room_code}`);
-      if (sessionName) return sessionName;
       return localStorage.getItem('moonlit_name') || '';
     }
     return '';
@@ -1104,17 +1103,17 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     }
   };
 
-  // Auto-join for host who created the room OR guest who already picked their name
+  // Auto-join ONLY for host who created the room OR guest who already picked their name in this session
   useEffect(() => {
     if (autoJoinedRef.current) return;
+    const isHost = Boolean(currentUserId && currentUserId === room.host_user_id);
     const sessionName = typeof window !== 'undefined'
       ? sessionStorage.getItem(`moonlit_name_${room.room_code}`)
       : null;
-    const isHost = Boolean(currentUserId && currentUserId === room.host_user_id);
 
     if (!isJoined && (isHost || sessionName)) {
       autoJoinedRef.current = true;
-      const targetName = sessionName || displayName || (isHost ? room.host_name : '');
+      const targetName = isHost ? room.host_name : (sessionName || '');
       if (targetName) {
         const timer = setTimeout(() => {
           void handleJoinRoom(targetName);
@@ -1122,7 +1121,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         return () => clearTimeout(timer);
       }
     }
-  }, [currentUserId, room.host_user_id, room.host_name, room.room_code, displayName, isJoined, handleJoinRoom]);
+  }, [currentUserId, room.host_user_id, room.host_name, room.room_code, isJoined, handleJoinRoom]);
 
   // Screen Sharing Trigger: Exactly ONE browser prompt per user click!
   const handleToggleScreenShare = async () => {
@@ -1683,10 +1682,12 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
     try {
       const storageKey = `moonlit_local_msgs_${room.room_code}_${currentUserId}`;
       sessionStorage.removeItem(storageKey);
+      sessionStorage.removeItem(`moonlit_name_${room.room_code}`);
     } catch {
       // safe
     }
 
+    setJoinNameInput('');
     setIsJoined(false);
     setIsLeaveModalOpen(true);
   }, [currentUserId, displayName, room.room_code]);
@@ -2159,16 +2160,53 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 className="flex flex-col gap-3.5"
               >
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-medium text-slate-300">Your Name</label>
-                  <input
-                    type="text"
-                    required
-                    maxLength={40}
-                    placeholder="What should we call you?"
-                    value={joinNameInput}
-                    onChange={(e) => setJoinNameInput(e.target.value)}
-                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none transition-all"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-medium text-slate-300">Your Name</label>
+                    {joinNameInput && (
+                      <button
+                        type="button"
+                        onClick={() => setJoinNameInput('')}
+                        className="text-[11px] text-slate-400 hover:text-rose-300 transition-colors cursor-pointer"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      maxLength={40}
+                      placeholder="What should we call you?"
+                      value={joinNameInput}
+                      onChange={(e) => setJoinNameInput(e.target.value)}
+                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-rose-500 focus:outline-none transition-all pr-8"
+                      autoFocus
+                    />
+                    {joinNameInput && (
+                      <button
+                        type="button"
+                        onClick={() => setJoinNameInput('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                        title="Clear input"
+                        aria-label="Clear input"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    )}
+                  </div>
+                  {recentSavedName && !joinNameInput && (
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-400">
+                      <span>Recent name:</span>
+                      <button
+                        type="button"
+                        onClick={() => setJoinNameInput(recentSavedName)}
+                        className="px-2 py-0.5 rounded-md bg-white/10 hover:bg-rose-500/20 hover:text-rose-200 text-slate-300 transition-all font-medium cursor-pointer"
+                      >
+                        {recentSavedName}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <button
                   type="submit"

@@ -18,7 +18,8 @@ export default function JoinRoomModal({
 }: JoinRoomModalProps) {
   const router = useRouter();
   const [codeOrUrl, setCodeOrUrl] = useState(initialCode);
-  const [displayName, setDisplayName] = useState(() => {
+  const [displayName, setDisplayName] = useState('');
+  const [recentSavedName] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('moonlit_name') || '';
     }
@@ -337,16 +338,51 @@ export default function JoinRoomModal({
 
               {/* Display Name */}
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium text-slate-300">Your Display Name</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={40}
-                  placeholder="e.g. Maya"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500/60 focus:bg-white/10 focus:outline-none transition-all"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-medium text-slate-300">Your Display Name</label>
+                  {displayName && (
+                    <button
+                      type="button"
+                      onClick={() => setDisplayName('')}
+                      className="text-[11px] text-slate-400 hover:text-purple-300 transition-colors cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    required
+                    maxLength={40}
+                    placeholder="e.g. Maya"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:border-purple-500/60 focus:bg-white/10 focus:outline-none transition-all pr-8"
+                  />
+                  {displayName && (
+                    <button
+                      type="button"
+                      onClick={() => setDisplayName('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 h-5 w-5 flex items-center justify-center rounded-full text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+                      title="Clear name"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                {recentSavedName && !displayName && (
+                  <div className="flex items-center gap-1.5 mt-0.5 text-[11px] text-slate-400">
+                    <span>Recent name:</span>
+                    <button
+                      type="button"
+                      onClick={() => setDisplayName(recentSavedName)}
+                      className="px-2 py-0.5 rounded-md bg-white/10 hover:bg-purple-500/20 hover:text-purple-200 text-slate-300 transition-all font-medium cursor-pointer"
+                    >
+                      {recentSavedName}
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Join CTA */}
