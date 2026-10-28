@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createRoom } from '@/lib/roomStore';
+import { normalizeTheme } from '@/lib/themes';
 import { ThemeType } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
@@ -16,8 +17,7 @@ export async function POST(req: NextRequest) {
 
     const cleanHostName = hostName.trim().slice(0, 50);
     const cleanTitle = (title && typeof title === 'string') ? title.trim().slice(0, 80) : 'Our Movie Night';
-    const validThemes: ThemeType[] = ['midnight', 'candlelight', 'lavender', 'cinema'];
-    const chosenTheme: ThemeType = validThemes.includes(theme) ? theme : 'midnight';
+    const chosenTheme: ThemeType = normalizeTheme(theme);
     const cleanHostUserId = (hostUserId && typeof hostUserId === 'string') ? hostUserId.trim() : undefined;
 
     const room = await createRoom({

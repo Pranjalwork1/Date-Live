@@ -12,9 +12,11 @@ import {
   Radio,
   Moon,
   ScreenShare,
+  Sparkles,
 } from 'lucide-react';
-import { ThemeType } from '@/lib/types';
+import { ThemeType, CameraProcessingMode, CAMERA_PROCESSING_MODES } from '@/lib/types';
 import { THEMES, normalizeTheme } from '@/lib/themes';
+import { ParticipantState } from './ParticipantPanel';
 
 interface ScreenStageProps {
   stream: MediaStream | null;
@@ -30,6 +32,9 @@ interface ScreenStageProps {
   onStartScreenShare?: () => void;
   onOpenInvite?: () => void;
   participantCount?: number;
+  spotlightParticipant?: ParticipantState | null;
+  onClearSpotlight?: () => void;
+  cameraProcessingMode?: CameraProcessingMode;
 }
 
 export default function ScreenStage({
@@ -46,15 +51,19 @@ export default function ScreenStage({
   onStartScreenShare,
   onOpenInvite,
   participantCount = 1,
+  spotlightParticipant,
+  onClearSpotlight,
+  cameraProcessingMode = 'studio-hd',
 }: ScreenStageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const spotlightVideoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const [volume, setVolume] = React.useState(1);
 
-  // Attach video stream
+  // Attach screen share video stream
   useEffect(() => {
     if (videoRef.current) {
       if (stream) {
@@ -68,12 +77,33 @@ export default function ScreenStage({
     }
   }, [stream]);
 
+  // Attach spotlight camera video stream
+  useEffect(() => {
+    const videoEl = spotlightVideoRef.current;
+    if (videoEl) {
+      if (spotlightParticipant?.cameraStream) {
+        videoEl.srcObject = spotlightParticipant.cameraStream;
+        videoEl.play().catch((err) => {
+          console.warn('Spotlight camera video play error:', err);
+        });
+      } else {
+        videoEl.srcObject = null;
+      }
+    }
+    return () => {
+      if (videoEl) {
+        videoEl.srcObject = null;
+      }
+    };
+  }, [spotlightParticipant?.cameraStream]);
+
   // Attach separate screen audio stream if remote
   useEffect(() => {
     if (audioRef.current) {
       if (audioStream && !isLocalSharing) {
         audioRef.current.srcObject = audioStream;
         audioRef.current.volume = volume;
+        audioRef.current.muted = isAudioMuted;
         audioRef.current.play().catch((err) => {
           console.warn('Screen audio playback interrupted:', err);
         });
@@ -81,7 +111,7 @@ export default function ScreenStage({
         audioRef.current.srcObject = null;
       }
     }
-  }, [audioStream, isLocalSharing, volume]);
+  }, [audioStream, isLocalSharing, volume, isAudioMuted]);
 
   const toggleFullscreen = () => {
     if (!containerRef.current) return;
@@ -121,6 +151,12 @@ export default function ScreenStage({
   };
 
   const currentTheme = THEMES[normalizeTheme(theme)] || THEMES.midnight;
+  const activeProcessing =
+    CAMERA_PROCESSING_MODES.find((m) => m.id === cameraProcessingMode) || CAMERA_PROCESSING_MODES[0];
+
+  const hasActiveSpotlight = Boolean(
+    !isSharing && spotlightParticipant && spotlightParticipant.isCameraOn && spotlightParticipant.cameraStream
+  );
 
   return (
     <div
@@ -130,9 +166,15 @@ export default function ScreenStage({
         backgroundColor: currentTheme.cardBg,
         borderWidth: '1.5px',
         borderStyle: 'solid',
-        borderColor: isSharing ? 'rgba(244,63,94,0.55)' : currentTheme.cardBorder,
+        borderColor: isSharing
+          ? 'rgba(244,63,94,0.55)'
+          : hasActiveSpotlight
+          ? 'rgba(168,85,247,0.55)'
+          : currentTheme.cardBorder,
         boxShadow: isSharing
           ? `0 0 0 1px rgba(244,63,94,0.2), 0 20px 60px -15px rgba(0,0,0,0.95), 0 0 40px -5px rgba(244,63,94,0.35)`
+          : hasActiveSpotlight
+          ? `0 0 0 1px rgba(168,85,247,0.2), 0 20px 60px -15px rgba(0,0,0,0.95), 0 0 40px -5px rgba(168,85,247,0.35)`
           : `0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 35px -8px ${currentTheme.glowColor}`,
       }}
     >
@@ -144,7 +186,7 @@ export default function ScreenStage({
         }}
       />
 
-      {/* Real Screen Share Video Track */}
+      {/* 1. Real Screen Share Video Track */}
       {isSharing ? (
         <div className="relative w-full h-full flex items-center justify-center bg-black">
           <video
@@ -168,7 +210,7 @@ export default function ScreenStage({
                 style={{ backgroundColor: '#f43f5e', boxShadow: '0 0 8px rgba(244,63,94,0.8)' }}
               />
               <span className="font-semibold text-[10px] sm:text-[11px] uppercase tracking-wider text-rose-300">
-                Live
+                Live Screen
               </span>
               <span className="hidden sm:inline text-slate-400">·</span>
               <span className="hidden sm:inline font-medium text-slate-200 text-[11px] truncate max-w-[120px]">
@@ -238,8 +280,73 @@ export default function ScreenStage({
             </div>
           </div>
         </div>
+      ) : hasActiveSpotlight ? (
+        /* 2. Spotlight Camera Video Stage */
+        <div className="relative w-full h-full flex items-center justify-center bg-black">
+          <video
+            ref={spotlightVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full max-h-[calc(100vh-140px)] object-cover sm:object-contain select-none"
+            style={{
+              filter: activeProcessing.filterStyle,
+              transform: 'translateZ(0)',
+              WebkitTransform: 'translateZ(0)',
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              willChange: 'transform, filter',
+            }}
+          />
+
+          {/* Top Spotlight Bar */}
+          <div className="absolute top-2.5 sm:top-4 left-2.5 sm:left-4 right-2.5 sm:right-4 flex items-center justify-between pointer-events-none z-20">
+            <div className="flex items-center gap-1.5 rounded-full bg-black/80 px-2.5 sm:px-3.5 py-1 sm:py-1.5 backdrop-blur-xl border border-white/10 text-xs text-white shadow-xl pointer-events-auto">
+              <span className="flex h-2 w-2 rounded-full bg-purple-400 animate-pulse shadow-sm shrink-0" />
+              <span className="font-semibold text-[10px] sm:text-[11px] uppercase tracking-wider text-purple-300">
+                Camera Spotlight
+              </span>
+              <span className="text-slate-400">·</span>
+              <span className="font-medium text-slate-200 text-[11px] truncate max-w-[140px]">
+                {spotlightParticipant?.displayName}
+              </span>
+              <span className="px-1.5 py-0.5 rounded-full bg-purple-500/25 border border-purple-500/40 text-purple-200 text-[9px] font-semibold">
+                HD 720p
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1.5 pointer-events-auto">
+              {/* Active Camera Processing badge */}
+              <div className="hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-full bg-black/75 border border-white/10 text-[11px] text-rose-300 backdrop-blur-xl">
+                <Sparkles className="h-3 w-3" />
+                <span>{activeProcessing.name}</span>
+              </div>
+
+              {/* Exit Spotlight button */}
+              {onClearSpotlight && (
+                <button
+                  onClick={onClearSpotlight}
+                  className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/80 hover:bg-black/95 text-xs text-slate-200 hover:text-white border border-white/15 backdrop-blur-xl transition-all cursor-pointer shadow-lg"
+                  title="Exit camera spotlight"
+                >
+                  <Minimize2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  <span className="hidden sm:inline">Exit Spotlight</span>
+                </button>
+              )}
+
+              {/* Fullscreen Button */}
+              <button
+                onClick={toggleFullscreen}
+                className="flex items-center justify-center h-7 w-7 sm:h-9 sm:w-9 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-xl border border-white/15 text-slate-200 hover:text-white transition-colors cursor-pointer shadow-lg"
+                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+              >
+                {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : (
-        /* Cozy Waiting State (No screen shared yet) */
+        /* 3. Cozy Waiting State (No screen shared yet, standby cinema) */
         <div className="relative flex flex-col items-center justify-center p-4 sm:p-8 text-center max-w-lg z-10 select-none">
           {/* Cinema Screen Illustration */}
           <div className="relative mb-4 sm:mb-5">
@@ -289,7 +396,7 @@ export default function ScreenStage({
                 Your movie night is waiting 🌙
               </h2>
               <p className="text-xs sm:text-sm text-slate-300/90 leading-relaxed mb-5 sm:mb-6 font-light max-w-sm">
-                Invite your person to start watching together. You can share your screen, movie sound, and talk freely.
+                Invite your person to start watching together. You can share your screen, movie sound, and talk freely with HD camera clarity.
               </p>
               <div className="flex flex-col sm:flex-row items-center gap-2.5 sm:gap-3 w-full sm:w-auto">
                 {onOpenInvite && (
@@ -361,7 +468,6 @@ export default function ScreenStage({
             </>
           )}
         </div>
-
       )}
 
       {/* Floating Theater Mode Toggle in Corner */}

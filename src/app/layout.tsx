@@ -1,19 +1,5 @@
 import type { Metadata } from 'next';
-import { Plus_Jakarta_Sans, Cormorant_Garamond } from 'next/font/google';
 import './globals.css';
-
-const sansFont = Plus_Jakarta_Sans({
-  variable: '--font-sans',
-  subsets: ['latin'],
-  display: 'swap',
-});
-
-const displayFont = Cormorant_Garamond({
-  variable: '--font-display',
-  subsets: ['latin'],
-  weight: ['400', '600', '700'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Moonlit — Watch Together | Romantic Virtual Movie Dates',
@@ -44,7 +30,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${sansFont.variable} ${displayFont.variable} h-full antialiased dark`}
+      className="h-full antialiased dark"
     >
       <body className="min-h-full flex flex-col bg-[#080A18] text-[#F8FAFC]">
         {children}

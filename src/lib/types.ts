@@ -74,3 +74,50 @@ export interface LiveKitTokenResponse {
   participantName: string;
   isMock?: boolean;
 }
+
+export type CameraProcessingMode = 'studio-hd' | 'low-light' | 'warm-glow' | 'natural';
+
+export interface CameraProcessingOption {
+  id: CameraProcessingMode;
+  name: string;
+  shortName: string;
+  icon: string;
+  filterStyle: string;
+  description: string;
+}
+
+export const CAMERA_PROCESSING_MODES: CameraProcessingOption[] = [
+  {
+    id: 'studio-hd',
+    name: 'Studio HD Clarity',
+    shortName: 'Studio HD',
+    icon: '✨',
+    filterStyle: 'contrast(1.09) brightness(1.06) saturate(1.12)',
+    description: 'Crisp facial contours, balanced exposure & rich colors',
+  },
+  {
+    id: 'low-light',
+    name: 'Low-Light Boost',
+    shortName: 'Night Boost',
+    icon: '🌙',
+    filterStyle: 'contrast(1.14) brightness(1.24) saturate(1.12)',
+    description: 'Brightens faces in dark rooms during movie watching',
+  },
+  {
+    id: 'warm-glow',
+    name: 'Romantic Warm Glow',
+    shortName: 'Warm Glow',
+    icon: '🕯️',
+    filterStyle: 'sepia(0.12) saturate(1.18) contrast(1.05) brightness(1.06) hue-rotate(-6deg)',
+    description: 'Soft candlelit warmth & flattering romantic mood',
+  },
+  {
+    id: 'natural',
+    name: 'Natural (Raw)',
+    shortName: 'Natural',
+    icon: '🌿',
+    filterStyle: 'none',
+    description: 'Direct unfiltered camera feed',
+  },
+];
+

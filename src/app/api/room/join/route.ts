@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRoomByCode, addRoomMember } from '@/lib/roomStore';
+import { getRoomByCode, addRoomMember, getRoomMembers } from '@/lib/roomStore';
 
 export async function POST(req: NextRequest) {
   try {
@@ -48,10 +48,13 @@ export async function POST(req: NextRequest) {
       }, { status: 409 });
     }
 
+    const allMembers = await getRoomMembers(room.id);
+
     return NextResponse.json({
       success: true,
       room,
       member: joinResult.member,
+      existingMembers: allMembers,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Failed to join room';

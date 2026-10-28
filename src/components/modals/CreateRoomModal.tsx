@@ -17,7 +17,7 @@ import {
   Moon,
 } from 'lucide-react';
 import { ThemeType } from '@/lib/types';
-import { THEMES } from '@/lib/themes';
+import { THEMES, AVAILABLE_MOODS } from '@/lib/themes';
 
 interface CreateRoomModalProps {
   isOpen: boolean;
@@ -273,7 +273,7 @@ export default function CreateRoomModal({ isOpen, onClose }: CreateRoomModalProp
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-medium text-slate-300">Choose a Romantic Mood</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(Object.keys(THEMES) as ThemeType[]).map((tKey) => {
+                  {AVAILABLE_MOODS.map((tKey) => {
                     const t = THEMES[tKey];
                     const isSelected = theme === tKey;
                     return (

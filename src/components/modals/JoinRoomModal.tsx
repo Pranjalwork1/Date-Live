@@ -37,10 +37,10 @@ export default function JoinRoomModal({
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
 
   const cleanExtractedCode = (input: string) => {
-    let clean = input.trim();
+    let clean = input.trim().split('?')[0].split('#')[0].replace(/\/+$/, '');
     if (clean.includes('/')) {
       const parts = clean.split('/');
-      clean = parts[parts.length - 1].split('?')[0];
+      clean = parts[parts.length - 1];
     }
     return clean.toLowerCase().trim();
   };

@@ -2,7 +2,17 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import confetti from 'canvas-confetti';
-import { Room, RoomEvent, Track, ConnectionQuality, Participant } from 'livekit-client';
+import {
+  Room,
+  RoomEvent,
+  Track,
+  ConnectionQuality,
+  Participant,
+  VideoPresets,
+  VideoQuality,
+  AudioPresets,
+  RemoteVideoTrack,
+} from 'livekit-client';
 import {
   DateRoom,
   RoomMessage,
@@ -10,6 +20,8 @@ import {
   ActiveReaction,
   ReactionPayload,
   LiveKitTokenResponse,
+  CameraProcessingMode,
+  CAMERA_PROCESSING_MODES,
 } from '@/lib/types';
 import { THEMES, normalizeTheme } from '@/lib/themes';
 import { ambienceManager } from '@/lib/ambience';
@@ -97,6 +109,16 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [cameraFacingMode, setCameraFacingMode] = useState<'user' | 'environment'>('user');
+  const [cameraProcessingMode, setCameraProcessingMode] = useState<CameraProcessingMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('moonlit_camera_processing');
+      if (saved && ['studio-hd', 'low-light', 'warm-glow', 'natural'].includes(saved)) {
+        return saved as CameraProcessingMode;
+      }
+    }
+    return 'studio-hd';
+  });
+  const [spotlightUserId, setSpotlightUserId] = useState<string | null>(null);
 
   // LiveKit Instance & Track Refs
   const lkRoomRef = useRef<Room | null>(null);
@@ -150,12 +172,33 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
   const [elapsedFormatted, setElapsedFormatted] = useState('00:00');
   const autoJoinedRef = useRef(false);
 
+  // Latest self state ref for BroadcastChannel sync without recreating listeners
+  const selfStateRef = useRef({ displayName, isMuted, isCameraOn, isJoined });
+  useEffect(() => {
+    selfStateRef.current = { displayName, isMuted, isCameraOn, isJoined };
+  }, [displayName, isMuted, isCameraOn, isJoined]);
+
   // Romantic Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
+  }, []);
+
+  const handleChangeProcessingMode = useCallback((mode: CameraProcessingMode) => {
+    setCameraProcessingMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('moonlit_camera_processing', mode);
+    }
+    const opt = CAMERA_PROCESSING_MODES.find((m) => m.id === mode);
+    if (opt) {
+      showToast(`Camera mode: ${opt.name}`);
+    }
+  }, [showToast]);
+
+  const handleToggleSpotlight = useCallback((userId: string) => {
+    setSpotlightUserId((prev) => (prev === userId ? null : userId));
   }, []);
 
   // BroadcastChannel for cross-tab sync in local development
@@ -169,7 +212,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       driftDirection: (Math.random() - 0.5) * 2,
     };
 
-    setReactions((prev) => [...prev, activeReaction]);
+    setReactions((prev) => [...prev.slice(-25), activeReaction]);
 
     if (isSender) {
       if (lkRoomRef.current) {
@@ -212,7 +255,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       if (type === 'REACTION') {
         triggerReactionAnimation(payload, false);
       } else if (type === 'PARTICIPANT_JOINED') {
-        if (payload.userId !== currentUserId) {
+        if (payload?.userId !== currentUserId) {
           showToast(`${payload.displayName} is here ❤️`);
           try {
             confetti({
@@ -224,6 +267,21 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           } catch {
             // safe
           }
+
+          // Reply back with our info so the new participant immediately knows about us
+          if (selfStateRef.current.isJoined) {
+            bc.postMessage({
+              type: 'PARTICIPANT_SYNC',
+              payload: {
+                userId: currentUserId,
+                displayName: selfStateRef.current.displayName,
+                role: currentUserId === room.host_user_id ? 'host' : 'guest',
+                isCameraOn: selfStateRef.current.isCameraOn,
+                isMuted: selfStateRef.current.isMuted,
+              },
+            });
+          }
+
           setParticipants((prev) => {
             const existing = prev.find((p) => p.userId === payload.userId);
             if (existing) {
@@ -248,6 +306,40 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 isSpeaking: false,
                 isSharingScreen: false,
                 isCameraOn: false,
+                status: 'live' as const,
+              },
+            ];
+          });
+        }
+      } else if (type === 'PARTICIPANT_SYNC') {
+        if (payload?.userId && payload.userId !== currentUserId) {
+          setParticipants((prev) => {
+            const existing = prev.find((p) => p.userId === payload.userId);
+            if (existing) {
+              return prev.map((p) =>
+                p.userId === payload.userId
+                  ? {
+                      ...p,
+                      displayName: payload.displayName || p.displayName,
+                      isHost: payload.role === 'host' || payload.userId === room.host_user_id,
+                      isMuted: typeof payload.isMuted === 'boolean' ? payload.isMuted : p.isMuted,
+                      isCameraOn: typeof payload.isCameraOn === 'boolean' ? payload.isCameraOn : p.isCameraOn,
+                      status: 'live' as const,
+                    }
+                  : p
+              );
+            }
+            return [
+              ...prev,
+              {
+                userId: payload.userId,
+                displayName: payload.displayName || 'Partner',
+                isHost: payload.role === 'host' || payload.userId === room.host_user_id,
+                isMuted: Boolean(payload.isMuted),
+                isSpeaking: false,
+                isSharingScreen: false,
+                isCameraOn: Boolean(payload.isCameraOn),
+                cameraStream: null,
                 status: 'live' as const,
               },
             ];
@@ -391,8 +483,30 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         }
 
         const lkRoom = new Room({
-          adaptiveStream: true,
+          adaptiveStream: {
+            pixelDensity: 'screen',
+            pauseVideoInBackground: false,
+          },
           dynacast: true,
+          videoCaptureDefaults: {
+            resolution: VideoPresets.h720.resolution,
+            facingMode: 'user',
+          },
+          publishDefaults: {
+            videoCodec: 'vp8',
+            simulcast: true,
+            videoEncoding: VideoPresets.h720.encoding,
+            videoSimulcastLayers: [VideoPresets.h360, VideoPresets.h180],
+            degradationPreference: 'maintain-resolution',
+            audioPreset: AudioPresets.music,
+            dtx: true,
+            red: true,
+          },
+          audioCaptureDefaults: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
         lkRoomRef.current = lkRoom;
 
@@ -411,6 +525,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 )
               );
             } else if (publication.source === Track.Source.Camera) {
+              if ('setVideoQuality' in publication) {
+                publication.setVideoQuality(VideoQuality.HIGH);
+              }
               const camStream = new MediaStream([track.mediaStreamTrack]);
               setParticipants((prev) =>
                 prev.map((p) =>
@@ -758,6 +875,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 setScreenAudioStream(new MediaStream([pub.track.mediaStreamTrack]));
                 setHasTabAudio(true);
               } else if (pub.source === Track.Source.Camera && pub.track.kind === Track.Kind.Video) {
+                if ('setVideoQuality' in pub) {
+                  pub.setVideoQuality(VideoQuality.HIGH);
+                }
                 pCameraStream = new MediaStream([pub.track.mediaStreamTrack]);
                 pIsCameraOn = true;
               } else if (pub.source === Track.Source.Microphone && pub.track.kind === Track.Kind.Audio) {
@@ -863,9 +983,29 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         status: 'live',
       };
 
+      const existingOthers: ParticipantState[] = (data.existingMembers || [])
+        .filter((m: { user_id: string }) => m.user_id !== currentUserId)
+        .map((m: { user_id: string; display_name: string; role: string }) => ({
+          userId: m.user_id,
+          displayName: m.display_name,
+          isHost: m.role === 'host' || m.user_id === room.host_user_id,
+          isMuted: true,
+          isSpeaking: false,
+          isSharingScreen: false,
+          isCameraOn: false,
+          cameraStream: null,
+          status: 'live' as const,
+        }));
+
       setParticipants((prev) => {
-        const others = prev.filter((p) => p.userId !== currentUserId);
-        return [selfParticipant, ...others];
+        const othersMap = new Map<string, ParticipantState>();
+        existingOthers.forEach((p) => othersMap.set(p.userId, p));
+        prev.forEach((p) => {
+          if (p.userId !== currentUserId) {
+            othersMap.set(p.userId, { ...othersMap.get(p.userId), ...p });
+          }
+        });
+        return [selfParticipant, ...Array.from(othersMap.values())];
       });
 
       broadcastChannelRef.current?.postMessage({
@@ -1054,6 +1194,7 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
           await lkRoomRef.current.localParticipant.setCameraEnabled(true, {
             facingMode: cameraFacingMode,
+            resolution: VideoPresets.h720.resolution,
           });
           const camPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
           const track = camPub?.videoTrack?.mediaStreamTrack;
@@ -1068,7 +1209,14 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           }
         } else {
           const userMedia = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: cameraFacingMode },
+            video: {
+              facingMode: cameraFacingMode,
+              width: { ideal: 1280, min: 640 },
+              height: { ideal: 720, min: 480 },
+              frameRate: { ideal: 30, min: 24 },
+              aspectRatio: { ideal: 16 / 9 },
+            },
+            audio: false,
           });
           const track = userMedia.getVideoTracks()[0];
           if (track) {
@@ -1139,7 +1287,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
         const camPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
         if (camPub?.videoTrack) {
-          await camPub.videoTrack.restartTrack({ facingMode: nextMode });
+          await camPub.videoTrack.restartTrack({
+            facingMode: nextMode,
+            resolution: VideoPresets.h720.resolution,
+          });
           const track = camPub.videoTrack.mediaStreamTrack;
           if (track) {
             localCameraTrackRef.current = track;
@@ -1151,7 +1302,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             );
           }
         } else {
-          await lkRoomRef.current.localParticipant.setCameraEnabled(true, { facingMode: nextMode });
+          await lkRoomRef.current.localParticipant.setCameraEnabled(true, {
+            facingMode: nextMode,
+            resolution: VideoPresets.h720.resolution,
+          });
           const newPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.Camera);
           const track = newPub?.videoTrack?.mediaStreamTrack;
           if (track) {
@@ -1167,7 +1321,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       } else {
         const oldTrack = localCameraTrackRef.current;
         const userMedia = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: nextMode } },
+          video: {
+            facingMode: { ideal: nextMode },
+            width: { ideal: 1280, min: 640 },
+            height: { ideal: 720, min: 480 },
+            frameRate: { ideal: 30, min: 24 },
+            aspectRatio: { ideal: 16 / 9 },
+          },
         });
         const track = userMedia.getVideoTracks()[0];
         if (track) {
@@ -1205,7 +1365,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       } else {
         if (!nextMuted) {
           if (!localMicTrackRef.current || localMicTrackRef.current.readyState === 'ended') {
-            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const micStream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+            });
             localMicTrackRef.current = micStream.getAudioTracks()[0];
           } else {
             localMicTrackRef.current.enabled = true;
@@ -1432,8 +1598,9 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
       // safe
     }
 
-    router.push('/');
-  }, [currentUserId, displayName, room.room_code, router]);
+    setIsJoined(false);
+    setIsLeaveModalOpen(true);
+  }, [currentUserId, displayName, room.room_code]);
 
   // Delete room execution (Host only)
   const handleExecuteDelete = useCallback(async () => {
@@ -1654,6 +1821,13 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
               theme={theme}
               isTheaterMode={isTheaterMode}
               participantCount={onlineCount}
+              spotlightParticipant={
+                participants.find(
+                  (p) => p.userId === spotlightUserId && p.isCameraOn && p.status === 'live'
+                ) || null
+              }
+              onClearSpotlight={() => setSpotlightUserId(null)}
+              cameraProcessingMode={cameraProcessingMode}
               onOpenInvite={() => setIsInviteModalOpen(true)}
               onToggleTheaterMode={() => setIsTheaterMode(!isTheaterMode)}
               onOpenAudioHelp={() => setIsAudioHelpOpen(true)}
@@ -1671,6 +1845,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
                 onOpenInvite={() => setIsInviteModalOpen(true)}
                 onFlipCamera={handleFlipCamera}
                 cameraFacingMode={cameraFacingMode}
+                processingMode={cameraProcessingMode}
+                onChangeProcessingMode={handleChangeProcessingMode}
+                spotlightUserId={spotlightUserId}
+                onToggleSpotlight={handleToggleSpotlight}
               />
             </div>
           )}
@@ -1934,7 +2112,12 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         isOpen={isLeaveModalOpen}
         roomTitle={room.title}
         durationFormatted={elapsedFormatted}
-        onRejoin={() => setIsLeaveModalOpen(false)}
+        onRejoin={() => {
+          setIsLeaveModalOpen(false);
+          if (displayName) {
+            void handleJoinRoom(displayName);
+          }
+        }}
       />
     </div>
   );
