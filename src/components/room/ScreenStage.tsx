@@ -62,6 +62,34 @@ export default function ScreenStage({
   const [isFullscreen, setIsFullscreen] = React.useState(false);
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const [volume, setVolume] = React.useState(1);
+  const [streamResolution, setStreamResolution] = React.useState<string>('FHD 1080p · 60fps');
+
+  // Detect and update active screen share resolution
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleMeta = () => {
+      const w = video.videoWidth;
+      const h = video.videoHeight;
+      if (w && h) {
+        if (h >= 1080 || w >= 1920) {
+          setStreamResolution(`1080p FHD · 60fps`);
+        } else if (h >= 720) {
+          setStreamResolution(`720p HD · 60fps`);
+        } else {
+          setStreamResolution(`${w}×${h}`);
+        }
+      }
+    };
+
+    video.addEventListener('loadedmetadata', handleMeta);
+    video.addEventListener('resize', handleMeta);
+    return () => {
+      video.removeEventListener('loadedmetadata', handleMeta);
+      video.removeEventListener('resize', handleMeta);
+    };
+  }, [stream]);
 
   // Attach screen share video stream
   useEffect(() => {
@@ -195,6 +223,11 @@ export default function ScreenStage({
             playsInline
             muted={isLocalSharing}
             className="w-full h-full max-h-[calc(100vh-140px)] object-contain select-none"
+            style={{
+              transform: 'translateZ(0)',
+              WebkitTransform: 'translateZ(0)',
+              willChange: 'transform',
+            }}
           />
 
           {/* Hidden dedicated audio sink for remote screen audio */}
@@ -211,6 +244,9 @@ export default function ScreenStage({
               />
               <span className="font-semibold text-[10px] sm:text-[11px] uppercase tracking-wider text-rose-300">
                 Live Screen
+              </span>
+              <span className="px-1.5 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/30 text-rose-200 text-[9px] font-semibold tracking-wide">
+                {streamResolution}
               </span>
               <span className="hidden sm:inline text-slate-400">·</span>
               <span className="hidden sm:inline font-medium text-slate-200 text-[11px] truncate max-w-[120px]">

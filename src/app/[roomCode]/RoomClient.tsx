@@ -10,6 +10,7 @@ import {
   Participant,
   VideoPresets,
   VideoQuality,
+  ScreenSharePresets,
   AudioPresets,
   RemoteVideoTrack,
 } from 'livekit-client';
@@ -497,9 +498,11 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
             simulcast: true,
             videoEncoding: VideoPresets.h720.encoding,
             videoSimulcastLayers: [VideoPresets.h360, VideoPresets.h180],
+            screenShareEncoding: ScreenSharePresets.h1080fps30.encoding,
             degradationPreference: 'maintain-resolution',
-            audioPreset: AudioPresets.music,
-            dtx: true,
+            audioPreset: AudioPresets.musicHighQualityStereo,
+            forceStereo: true,
+            dtx: false,
             red: true,
           },
           audioCaptureDefaults: {
@@ -514,6 +517,15 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         lkRoom.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
           if (track.kind === Track.Kind.Video) {
             if (publication.source === Track.Source.ScreenShare) {
+              if ('setVideoQuality' in publication) {
+                publication.setVideoQuality(VideoQuality.HIGH);
+              }
+              if ('setVideoFPS' in publication) {
+                publication.setVideoFPS(60);
+              }
+              if ('contentHint' in track.mediaStreamTrack) {
+                track.mediaStreamTrack.contentHint = 'motion';
+              }
               const stream = new MediaStream([track.mediaStreamTrack]);
               setScreenStream(stream);
               setIsScreenSharing(true);
@@ -866,6 +878,15 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           p.trackPublications.forEach((pub) => {
             if (pub.isSubscribed && pub.track) {
               if (pub.source === Track.Source.ScreenShare && pub.track.kind === Track.Kind.Video) {
+                if ('setVideoQuality' in pub) {
+                  pub.setVideoQuality(VideoQuality.HIGH);
+                }
+                if ('setVideoFPS' in pub) {
+                  pub.setVideoFPS(60);
+                }
+                if ('contentHint' in pub.track.mediaStreamTrack) {
+                  pub.track.mediaStreamTrack.contentHint = 'motion';
+                }
                 setScreenStream(new MediaStream([pub.track.mediaStreamTrack]));
                 setIsScreenSharing(true);
                 setIsLocalSharing(false);
@@ -1103,18 +1124,45 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
 
     try {
       if (lkRoomRef.current && lkRoomRef.current.state === 'connected') {
-        // Direct LiveKit integrated screen sharing with audio - prompts the user ONCE
-        await lkRoomRef.current.localParticipant.setScreenShareEnabled(true, {
-          audio: true,
-          selfBrowserSurface: 'include',
-          surfaceSwitching: 'include',
-          systemAudio: 'include',
-        });
+        // Direct LiveKit integrated screen sharing with cinema high-definition video & pristine audio
+        await lkRoomRef.current.localParticipant.setScreenShareEnabled(
+          true,
+          {
+            audio: {
+              echoCancellation: false,
+              noiseSuppression: false,
+              autoGainControl: false,
+              channelCount: 2,
+            },
+            video: {
+              displaySurface: 'browser',
+            },
+            resolution: VideoPresets.h1080.resolution,
+            contentHint: 'motion',
+            selfBrowserSurface: 'include',
+            surfaceSwitching: 'include',
+            systemAudio: 'include',
+          },
+          {
+            screenShareEncoding: {
+              maxBitrate: 6_000_000,
+              maxFramerate: 60,
+              priority: 'high',
+            },
+            audioPreset: AudioPresets.musicHighQualityStereo,
+            forceStereo: true,
+            dtx: false,
+            red: true,
+          }
+        );
 
         const screenPub = lkRoomRef.current.localParticipant.getTrackPublication(Track.Source.ScreenShare);
         const videoTrack = screenPub?.videoTrack?.mediaStreamTrack;
 
         if (videoTrack) {
+          if ('contentHint' in videoTrack) {
+            videoTrack.contentHint = 'motion';
+          }
           localScreenTrackRef.current = videoTrack;
           setScreenStream(new MediaStream([videoTrack]));
           setIsScreenSharing(true);
@@ -1140,16 +1188,19 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
           prev.map((p) => (p.userId === currentUserId ? { ...p, isSharingScreen: true } : p))
         );
       } else {
-        // Fallback local capture (mock/dev mode)
+        // Fallback local capture (mock/dev mode) with Full HD 60fps & motion hint
         const captureStream = await navigator.mediaDevices.getDisplayMedia({
           video: {
             displaySurface: 'browser',
-            frameRate: { ideal: 30, max: 60 },
+            width: { ideal: 1920, max: 3840 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 60, max: 60 },
           },
           audio: {
             echoCancellation: false,
             noiseSuppression: false,
             autoGainControl: false,
+            channelCount: 2,
           },
         });
 
@@ -1157,6 +1208,10 @@ export default function RoomClient({ initialRoom }: RoomClientProps) {
         const audioTracks = captureStream.getAudioTracks();
 
         if (!videoTrack) return;
+
+        if ('contentHint' in videoTrack) {
+          videoTrack.contentHint = 'motion';
+        }
 
         localScreenTrackRef.current = videoTrack;
         setScreenStream(captureStream);

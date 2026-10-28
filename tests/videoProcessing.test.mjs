@@ -40,5 +40,14 @@ test('Video Call Optimization & Processing Configuration', async (t) => {
       assert.ok(mode.description && mode.description.length > 0);
     }
   });
+
+  await t.test('screen share presets verify high-quality 1080p motion encoding and stereo audio', async () => {
+    const lk = await import('livekit-client');
+    assert.ok(lk.ScreenSharePresets.h1080fps30);
+    assert.strictEqual(lk.ScreenSharePresets.h1080fps30.width, 1920);
+    assert.strictEqual(lk.ScreenSharePresets.h1080fps30.height, 1080);
+    assert.ok(lk.ScreenSharePresets.h1080fps30.encoding.maxBitrate >= 5000000);
+    assert.ok(lk.AudioPresets.musicHighQualityStereo.maxBitrate >= 128000);
+  });
 });
 
