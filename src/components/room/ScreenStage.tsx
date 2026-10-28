@@ -13,8 +13,15 @@ import {
   Moon,
   ScreenShare,
   Sparkles,
+  Check,
 } from 'lucide-react';
-import { ThemeType, CameraProcessingMode, CAMERA_PROCESSING_MODES } from '@/lib/types';
+import {
+  ThemeType,
+  CameraProcessingMode,
+  CAMERA_PROCESSING_MODES,
+  ScreenProcessingMode,
+  SCREEN_PROCESSING_MODES,
+} from '@/lib/types';
 import { THEMES, normalizeTheme } from '@/lib/themes';
 import { ParticipantState } from './ParticipantPanel';
 
@@ -63,6 +70,28 @@ export default function ScreenStage({
   const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const [volume, setVolume] = React.useState(1);
   const [streamResolution, setStreamResolution] = React.useState<string>('FHD 1080p · 60fps');
+
+  // Screen processing enhancement mode state
+  const [screenProcessingMode, setScreenProcessingMode] = React.useState<ScreenProcessingMode>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('moonlit_screen_processing');
+      if (saved && ['cinema-true', 'vivid-crisp', 'night-cinema', 'source-pure'].includes(saved)) {
+        return saved as ScreenProcessingMode;
+      }
+    }
+    return 'cinema-true';
+  });
+  const [isProcessingMenuOpen, setIsProcessingMenuOpen] = React.useState(false);
+
+  const activeScreenProcessing =
+    SCREEN_PROCESSING_MODES.find((m) => m.id === screenProcessingMode) || SCREEN_PROCESSING_MODES[0];
+
+  const handleChangeScreenProcessing = (mode: ScreenProcessingMode) => {
+    setScreenProcessingMode(mode);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('moonlit_screen_processing', mode);
+    }
+  };
 
   // Detect and update active screen share resolution
   useEffect(() => {
@@ -222,11 +251,12 @@ export default function ScreenStage({
             autoPlay
             playsInline
             muted={isLocalSharing}
-            className="w-full h-full max-h-[calc(100vh-140px)] object-contain select-none"
+            className="w-full h-full max-h-[calc(100vh-140px)] object-contain select-none transition-all duration-300"
             style={{
+              filter: activeScreenProcessing.filterStyle,
               transform: 'translateZ(0)',
               WebkitTransform: 'translateZ(0)',
-              willChange: 'transform',
+              willChange: 'transform, filter',
             }}
           />
 
@@ -255,6 +285,80 @@ export default function ScreenStage({
             </div>
 
             <div className="flex items-center gap-1.5 pointer-events-auto">
+              {/* Cinema Screen Processing Mode Dropdown */}
+              <div className="relative pointer-events-auto">
+                <button
+                  type="button"
+                  onClick={() => setIsProcessingMenuOpen((prev) => !prev)}
+                  className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs font-medium backdrop-blur-xl border transition-all cursor-pointer shadow-lg ${
+                    screenProcessingMode !== 'source-pure'
+                      ? 'bg-rose-500/25 border-rose-400/50 text-rose-200 hover:bg-rose-500/35'
+                      : 'bg-black/80 hover:bg-black/95 text-slate-300 border-white/15'
+                  }`}
+                  title={`Cinema Clarity: ${activeScreenProcessing.name} (click to adjust)`}
+                  aria-label="Adjust cinema screen clarity filter"
+                >
+                  <Sparkles className="h-3 w-3 text-rose-300 shrink-0" />
+                  <span className="hidden sm:inline">{activeScreenProcessing.shortName}</span>
+                </button>
+
+                {isProcessingMenuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setIsProcessingMenuOpen(false)}
+                    />
+                    <div
+                      className="absolute right-0 top-9 sm:top-10 z-50 w-64 rounded-2xl border border-white/20 bg-slate-950/95 p-2 shadow-2xl backdrop-blur-2xl ring-1 ring-white/10"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="px-2 py-1 mb-1 border-b border-white/10 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-rose-300 flex items-center gap-1">
+                          <Sparkles className="h-3 w-3" />
+                          <span>Screen Clarity Mode</span>
+                        </span>
+                        <span className="text-[9px] text-slate-400">1080p 60fps</span>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {SCREEN_PROCESSING_MODES.map((option) => {
+                          const isSelected = screenProcessingMode === option.id;
+                          return (
+                            <button
+                              key={option.id}
+                              type="button"
+                              onClick={() => {
+                                handleChangeScreenProcessing(option.id);
+                                setIsProcessingMenuOpen(false);
+                              }}
+                              className={`flex items-start gap-2 px-2 py-1.5 rounded-xl text-left transition-all cursor-pointer ${
+                                isSelected
+                                  ? 'bg-rose-500/20 text-rose-200 border border-rose-500/40'
+                                  : 'hover:bg-white/10 text-slate-300 border border-transparent'
+                              }`}
+                            >
+                              <span className="text-sm shrink-0 mt-0.5">{option.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-semibold leading-none truncate">
+                                    {option.name}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="h-3 w-3 text-rose-400 shrink-0 ml-1" />
+                                  )}
+                                </div>
+                                <span className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">
+                                  {option.description}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
               {/* Tab Audio Indicator - hidden on xs, shown sm+ */}
               <button
                 onClick={onOpenAudioHelp}

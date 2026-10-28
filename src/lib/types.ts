@@ -121,3 +121,49 @@ export const CAMERA_PROCESSING_MODES: CameraProcessingOption[] = [
   },
 ];
 
+export type ScreenProcessingMode = 'cinema-true' | 'vivid-crisp' | 'night-cinema' | 'source-pure';
+
+export interface ScreenProcessingOption {
+  id: ScreenProcessingMode;
+  name: string;
+  shortName: string;
+  icon: string;
+  filterStyle: string;
+  description: string;
+}
+
+export const SCREEN_PROCESSING_MODES: ScreenProcessingOption[] = [
+  {
+    id: 'cinema-true',
+    name: 'Cinema True Tone',
+    shortName: 'Cinema True',
+    icon: '🎬',
+    filterStyle: 'contrast(1.08) saturate(1.10) brightness(1.02)',
+    description: 'Theatrical contrast calibration with rich deep blacks',
+  },
+  {
+    id: 'vivid-crisp',
+    name: 'Vivid Ultra Clarity',
+    shortName: 'Vivid Crisp',
+    icon: '✨',
+    filterStyle: 'contrast(1.14) saturate(1.22) brightness(1.04)',
+    description: 'High vibrance & razor-sharp definition for animated & colorful films',
+  },
+  {
+    id: 'night-cinema',
+    name: 'Night Shadow Boost',
+    shortName: 'Shadow Boost',
+    icon: '🌙',
+    filterStyle: 'brightness(1.15) contrast(1.10) saturate(1.08)',
+    description: 'Lifts dark shadow details in low-light scenes without washing out colors',
+  },
+  {
+    id: 'source-pure',
+    name: 'Direct Source (Raw)',
+    shortName: 'Raw Direct',
+    icon: '🎞️',
+    filterStyle: 'none',
+    description: 'Untouched bit-for-bit raw screen capture feed',
+  },
+];
+

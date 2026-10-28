@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { CAMERA_PROCESSING_MODES } from '../src/lib/types.ts';
+import { CAMERA_PROCESSING_MODES, SCREEN_PROCESSING_MODES } from '../src/lib/types.ts';
 
 test('Video Call Optimization & Processing Configuration', async (t) => {
   await t.test('all 4 camera processing modes are defined with distinct filter styles', () => {
@@ -32,8 +32,36 @@ test('Video Call Optimization & Processing Configuration', async (t) => {
     assert.strictEqual(natural.filterStyle, 'none');
   });
 
+  await t.test('all 4 screen processing modes are defined with calibrated filters', () => {
+    assert.strictEqual(SCREEN_PROCESSING_MODES.length, 4);
+
+    const ids = SCREEN_PROCESSING_MODES.map((m) => m.id);
+    assert.deepStrictEqual(ids, ['cinema-true', 'vivid-crisp', 'night-cinema', 'source-pure']);
+
+    // Cinema True Tone should have subtle contrast & saturation boost
+    const cinemaTrue = SCREEN_PROCESSING_MODES.find((m) => m.id === 'cinema-true');
+    assert.ok(cinemaTrue);
+    assert.ok(cinemaTrue.filterStyle.includes('contrast(1.08)'));
+    assert.ok(cinemaTrue.filterStyle.includes('saturate(1.10)'));
+
+    // Vivid Ultra Clarity should have high saturation boost
+    const vivid = SCREEN_PROCESSING_MODES.find((m) => m.id === 'vivid-crisp');
+    assert.ok(vivid);
+    assert.ok(vivid.filterStyle.includes('saturate(1.22)'));
+
+    // Night Shadow Boost should lift shadow details with brightness(1.15)
+    const shadowBoost = SCREEN_PROCESSING_MODES.find((m) => m.id === 'night-cinema');
+    assert.ok(shadowBoost);
+    assert.ok(shadowBoost.filterStyle.includes('brightness(1.15)'));
+
+    // Direct Source should be raw unmodified output
+    const rawDirect = SCREEN_PROCESSING_MODES.find((m) => m.id === 'source-pure');
+    assert.ok(rawDirect);
+    assert.strictEqual(rawDirect.filterStyle, 'none');
+  });
+
   await t.test('each mode provides user-friendly title, icon, and description', () => {
-    for (const mode of CAMERA_PROCESSING_MODES) {
+    for (const mode of [...CAMERA_PROCESSING_MODES, ...SCREEN_PROCESSING_MODES]) {
       assert.ok(mode.name && mode.name.length > 0);
       assert.ok(mode.shortName && mode.shortName.length > 0);
       assert.ok(mode.icon && mode.icon.length > 0);
